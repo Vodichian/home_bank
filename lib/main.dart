@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:home_bank/screens/create_user.dart';
 import 'package:home_bank/screens/home_screen.dart';
 import 'package:home_bank/screens/investments_screen.dart';
 import 'package:home_bank/screens/profile_screen.dart';
@@ -8,11 +10,7 @@ import 'dart:io' show Platform;
 void main() async {
   if (Platform.isWindows) {
     WidgetsFlutterBinding.ensureInitialized();
-
-    // Wait for window manager to be ready.
     await windowManager.ensureInitialized();
-
-    // Set the window size.
     windowManager.setTitle('Home Bank');
     windowManager.waitUntilReadyToShow().then((_) async {
       await windowManager.setSize(const Size(600, 800));
@@ -21,56 +19,117 @@ void main() async {
     });
   }
 
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  MyApp({super.key});
+
+  // Define GoRouter configuration
+  final _router = GoRouter(
+    initialLocation: '/', // Set initial location
+    routes: <RouteBase>[
+      ShellRoute(
+        builder: (context, state, child) {
+          return MainScreen(child: child);
+        },
+        routes: <RouteBase>[
+          GoRoute(
+            path: '/',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: HomeScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/createUser',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: CreateUserScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/investments',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: InvestmentsScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/profile',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: ProfileScreen(),
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
+      routerConfig: _router,
       title: 'Flutter Navigation Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      darkTheme: ThemeData.dark(),
       themeMode: ThemeMode.dark,
-      home: const MainScreen(), // Use MainScreen as the home
+      theme: ThemeData(
+          primarySwatch: Colors.red,
+      ),
+      darkTheme: ThemeData.dark().copyWith(
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+          selectedItemColor: Colors.yellow, // Or any color that contrasts with a dark background
+          unselectedItemColor: Colors.yellow[300], // A lighter shade for unselected icons),
+          showUnselectedLabels: true,
+      ),
+      ),
     );
   }
 }
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final Widget child;
+
+  const MainScreen({super.key, required this.child});
 
   @override
-  createState() => _MainScreenState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const InvestmentsScreen(),
-    const ProfileScreen(),
-  ];
+
+  void _onItemTapped(int index) {
+    switch (index) {
+      case 0:
+        context.go('/');
+        break;
+      case 1:
+        context.go('/createUser');
+        break;
+      case 2:
+        context.go('/investments');
+        break;
+      case 3:
+        context.go('/profile');
+        break;
+    }
+    setState(() {
+      _currentIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_currentIndex],
+      body: widget.child,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onTap: _onItemTapped,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_add), // Changed to person_add
+            label: 'Create User',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.attach_money),
