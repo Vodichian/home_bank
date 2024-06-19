@@ -29,13 +29,13 @@ void main() async {
   runApp(
       ChangeNotifierProvider(
         create: (context) => bank(),
-        child: MyApp(),
+        child: const MyApp(),
       )
   );
 }
 
 class MyApp extends StatelessWidget {
-  MyApp({super.key});
+  const MyApp({super.key});
 
 
   @override
@@ -49,7 +49,8 @@ class MyApp extends StatelessWidget {
         GoRoute(path: '/login',builder: (context, state) => const LoginScreen()),
         ShellRoute(
           builder: (context, state, child) {
-            return MainScreen(child: child);
+            bool showBottomBar = state.matchedLocation != '/createUser';
+            return MainScreen(showBottomNavigationBar: showBottomBar,child: child,);
           },
           routes: <RouteBase>[
             GoRoute(
@@ -102,8 +103,13 @@ class MyApp extends StatelessWidget {
 
 class MainScreen extends StatefulWidget {
   final Widget child;
+  final bool showBottomNavigationBar;
 
-  const MainScreen({super.key, required this.child});
+  const MainScreen({
+    super.key,
+    required this.child,
+    required this.showBottomNavigationBar
+  });
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -133,7 +139,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: widget.child,
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: widget.showBottomNavigationBar ? BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onItemTapped,
         items: const [
@@ -150,7 +156,7 @@ class _MainScreenState extends State<MainScreen> {
             label: 'User',
           ),
         ],
-      ),
+      ) : null,
     );
   }
 }

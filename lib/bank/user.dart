@@ -1,17 +1,18 @@
 class User {
   String fullName;
-  String userId;
-  String? nickname; // Optional nickname
+  int userId;
+  String? username;
   String? imagePath; // Path to the user's image
 
   User({
-    required this.fullName,required this.userId,
-    this.nickname,
+    required this.fullName,
+    required this.userId,
+    required this.username,
     this.imagePath,
   });
 
   @override
   String toString() {
-    return nickname ?? fullName;
+    return username ?? fullName;
   }
 }
