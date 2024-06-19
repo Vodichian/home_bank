@@ -9,4 +9,9 @@ class User {
     this.nickname,
     this.imagePath,
   });
+
+  @override
+  String toString() {
+    return nickname ?? fullName;
+  }
 }

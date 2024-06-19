@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:logger/logger.dart';
+import 'package:provider/provider.dart';
+
+import '../bank/bank.dart';
+
+final Logger _logger = Logger(
+  printer: PrettyPrinter(methodCount: 0),
+);
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,6 +21,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Bank bank = context.read();
+    _logger.d('bank: ${bank.test}');
+    _logger.d('Bank has ${bank.users().length} users');
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Login'),
@@ -22,15 +34,16 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Form(
           key: _formKey,
           child: Column(
-            children: [TextFormField(
-              decoration: const InputDecoration(labelText: 'Username'),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your username';
-                }
-                return null;
-              },
-            ),
+            children: [
+              TextFormField(
+                decoration: const InputDecoration(labelText: 'Username'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your username';
+                  }
+                  return null;
+                },
+              ),
               TextFormField(
                 obscureText: true,
                 decoration: const InputDecoration(labelText: 'Password'),
@@ -45,7 +58,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
                     // Perform authentication check here (replace with your actual logic)
-                    bool isAuthenticated = true; // Replace with your authentication logic
+                    bool isAuthenticated =
+                        true; // Replace with your authentication logic
 
                     if (isAuthenticated) {
                       // Navigate to the main app after successful login
@@ -55,7 +69,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Invalid credentials')),
                       );
-                    }}
+                    }
+                  }
                 },
                 child: const Text('Login'),
               ),

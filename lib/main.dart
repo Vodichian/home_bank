@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:home_bank/bank/bank.dart';
 import 'package:home_bank/screens/create_user.dart';
 import 'package:home_bank/screens/home_screen.dart';
 import 'package:home_bank/screens/investments_screen.dart';
 import 'package:home_bank/screens/login_screen.dart';
 import 'package:home_bank/screens/user_screen.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:provider/provider.dart';
 import 'dart:io' show Platform;
 
 void main() async {
@@ -20,55 +22,68 @@ void main() async {
     });
   }
 
-  runApp(MyApp());
+  Bank bank() {
+    return Bank(test: "test1");
+  }
+
+  runApp(
+      ChangeNotifierProvider(
+        create: (context) => bank(),
+        child: MyApp(),
+      )
+  );
 }
 
 class MyApp extends StatelessWidget {
   MyApp({super.key});
 
-  // Define GoRouter configuration
-  final _router = GoRouter(
-    initialLocation: '/login', // Set initial location
-    routes: <RouteBase>[
-      GoRoute(path: '/login',builder: (context, state) => const LoginScreen()),
-      ShellRoute(
-        builder: (context, state, child) {
-          return MainScreen(child: child);
-        },
-        routes: <RouteBase>[
-          GoRoute(
-            path: '/',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: HomeScreen(),
-            ),
-          ),
-          GoRoute(
-            path: '/createUser',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: CreateUserScreen(),
-            ),
-          ),
-          GoRoute(
-            path: '/investments',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: InvestmentsScreen(),
-            ),
-          ),
-          GoRoute(
-            path: '/profile',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: UserScreen(),
-            ),
-          ),
-        ],
-      ),
-    ],
-  );
 
   @override
   Widget build(BuildContext context) {
+    Bank bank = context.read();
+    var initialLocation = bank.users().isEmpty ? "/login" : "/createUser";
+    // Define GoRouter configuration
+    var router = GoRouter(
+      initialLocation: initialLocation, // Set initial location
+      routes: <RouteBase>[
+        GoRoute(path: '/login',builder: (context, state) => const LoginScreen()),
+        ShellRoute(
+          builder: (context, state, child) {
+            return MainScreen(child: child);
+          },
+          routes: <RouteBase>[
+            GoRoute(
+              path: '/',
+              pageBuilder: (context, state) => const NoTransitionPage(
+                child: HomeScreen(),
+              ),
+            ),
+            GoRoute(
+              path: '/createUser',
+              pageBuilder: (context, state) => const NoTransitionPage(
+                child: CreateUserScreen(),
+              ),
+            ),
+            GoRoute(
+              path: '/investments',
+              pageBuilder: (context, state) => const NoTransitionPage(
+                child: InvestmentsScreen(),
+              ),
+            ),
+            GoRoute(
+              path: '/profile',
+              pageBuilder: (context, state) => const NoTransitionPage(
+                child: UserScreen(),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+
     return MaterialApp.router(
-      routerConfig: _router,
+      routerConfig: router,
       title: 'Flutter Navigation Demo',
       themeMode: ThemeMode.dark,
       theme: ThemeData(
@@ -103,12 +118,9 @@ class _MainScreenState extends State<MainScreen> {
         context.go('/');
         break;
       case 1:
-        context.go('/createUser');
-        break;
-      case 2:
         context.go('/investments');
         break;
-      case 3:
+      case 2:
         context.go('/profile');
         break;
     }
