@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:home_bank/screens/create_user.dart';
 import 'package:home_bank/screens/home_screen.dart';
 import 'package:home_bank/screens/investments_screen.dart';
+import 'package:home_bank/screens/login_screen.dart';
 import 'package:home_bank/screens/profile_screen.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io' show Platform;
@@ -27,8 +28,9 @@ class MyApp extends StatelessWidget {
 
   // Define GoRouter configuration
   final _router = GoRouter(
-    initialLocation: '/', // Set initial location
+    initialLocation: '/login', // Set initial location
     routes: <RouteBase>[
+      GoRoute(path: '/login',builder: (context, state) => const LoginScreen()),
       ShellRoute(
         builder: (context, state, child) {
           return MainScreen(child: child);
