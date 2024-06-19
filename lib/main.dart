@@ -41,7 +41,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Bank bank = context.read();
-    var initialLocation = bank.users().isEmpty ? "/login" : "/createUser";
+    var initialLocation = bank.users().isNotEmpty ? "/login" : "/createUser";
     // Define GoRouter configuration
     var router = GoRouter(
       initialLocation: initialLocation, // Set initial location

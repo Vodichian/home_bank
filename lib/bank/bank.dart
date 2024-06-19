@@ -3,10 +3,12 @@ import 'package:home_bank/bank/user.dart';
 
 class Bank extends ChangeNotifier {
   final String test; // Added variable 'test'
-  final _users = [
-    User(fullName: "Victoria Tran-McDonald", userId: 1, username: 'Tori'),
-    User(fullName: "Willben Tran-McDonald", userId: 2, username: 'Will')
-  ];
+  final _users = [];
+
+  // final _users = [
+  //   User(fullName: "Victoria Tran-McDonald", userId: 1, username: 'Tori'),
+  //   User(fullName: "Willben Tran-McDonald", userId: 2, username: 'Will')
+  // ];
 
   Bank({required this.test}); // TODO: Remove this test property
 
