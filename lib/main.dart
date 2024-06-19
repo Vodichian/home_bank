@@ -4,7 +4,7 @@ import 'package:home_bank/screens/create_user.dart';
 import 'package:home_bank/screens/home_screen.dart';
 import 'package:home_bank/screens/investments_screen.dart';
 import 'package:home_bank/screens/login_screen.dart';
-import 'package:home_bank/screens/profile_screen.dart';
+import 'package:home_bank/screens/user_screen.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io' show Platform;
 
@@ -57,7 +57,7 @@ class MyApp extends StatelessWidget {
           GoRoute(
             path: '/profile',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: ProfileScreen(),
+              child: UserScreen(),
             ),
           ),
         ],
