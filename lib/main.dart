@@ -78,7 +78,7 @@ class MyApp extends StatelessWidget {
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
           selectedItemColor: Colors.yellow, // Or any color that contrasts with a dark background
           unselectedItemColor: Colors.yellow[300], // A lighter shade for unselected icons),
-          showUnselectedLabels: true,
+          showUnselectedLabels: false,
       ),
       ),
     );
@@ -130,16 +130,12 @@ class _MainScreenState extends State<MainScreen> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_add), // Changed to person_add
-            label: 'Create User',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.attach_money),
             label: 'Investments',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
-            label: 'Profile',
+            label: 'User',
           ),
         ],
       ),
