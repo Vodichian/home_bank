@@ -1,10 +1,10 @@
-class User {
+class UserDepr {
   String fullName;
   int userId;
   String? username;
   String? imagePath; // Path to the user's image
 
-  User({
+  UserDepr({
     required this.fullName,
     required this.userId,
     required this.username,

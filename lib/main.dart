@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:home_bank/bank/bank.dart';
+import 'package:home_bank/bank/bank_facade.dart';
 import 'package:home_bank/screens/create_user.dart';
 import 'package:home_bank/screens/home_screen.dart';
+import 'package:home_bank/screens/initializing_screen.dart';
 import 'package:home_bank/screens/investments_screen.dart';
 import 'package:home_bank/screens/login_screen.dart';
 import 'package:home_bank/screens/user_screen.dart';
@@ -22,8 +23,9 @@ void main() async {
     });
   }
 
-  Bank bank() {
-    return Bank(test: "test1");
+  bank() {
+    BankFacade bank = BankFacade(test: "test1");
+    return bank;
   }
 
   runApp(
@@ -40,11 +42,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Bank bank = context.read();
-    var initialLocation = bank.users().isNotEmpty ? "/login" : "/createUser";
+    BankFacade bank = context.read();
     // Define GoRouter configuration
     var router = GoRouter(
-      initialLocation: initialLocation, // Set initial location
+      initialLocation: '/initializing', // Set initial location
       routes: <RouteBase>[
         GoRoute(path: '/login',builder: (context, state) => const LoginScreen()),
         ShellRoute(
@@ -57,6 +58,17 @@ class MyApp extends StatelessWidget {
               path: '/',
               pageBuilder: (context, state) => const NoTransitionPage(
                 child: HomeScreen(),
+              ),
+            ),
+            GoRoute(
+              path: '/initializing',
+              // redirect: (context, state) async {
+              //   await bank.initialize();
+              //   var initialLocation = bank.users().isNotEmpty ? "/login" : "/createUser";
+              //   return initialLocation;
+              // },
+              pageBuilder: (context, state) => const NoTransitionPage(
+                child: InitializingScreen(),
               ),
             ),
             GoRoute(

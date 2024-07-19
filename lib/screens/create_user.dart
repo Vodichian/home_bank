@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:home_bank/bank/bank.dart';
+import 'package:home_bank/bank/bank_facade.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:home_bank/bank/user.dart';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart'; // Import the User class
 
@@ -17,7 +16,6 @@ class CreateUserScreen extends StatefulWidget {
 final Logger _logger = Logger(
   printer: PrettyPrinter(methodCount: 0),
 );
-
 
 class _CreateUserScreenState extends State<CreateUserScreen> {
   final _formKey = GlobalKey<FormState>();
@@ -38,7 +36,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Bank bank = context.read();
+    BankFacade bank = context.read();
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create User'),
@@ -60,19 +58,32 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   return null;
                 },
               ),
-              TextFormField(
-                controller: _usernameController,
-                decoration:
-                const InputDecoration(labelText: 'Username'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a username';
-                  } else if (bank.hasUsername(value)) {
-                    return 'User name is already taken';
-                  }
-                  return null;
-                },
-              ),
+              FutureBuilder(
+                  future: bank.hasUsername(_usernameController.text),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const CircularProgressIndicator(); // Show a loading indicator while checking
+                    } else if (snapshot.hasError) {
+                      return Text(
+                          'Error: ${snapshot.error}'); // Display an error message
+                    } else {
+                      bool hasUsername =
+                          snapshot.data ?? false; // Get the result
+                      return TextFormField(
+                        controller: _usernameController,
+                        decoration:
+                            const InputDecoration(labelText: 'Username'),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter a username';
+                          } else if (hasUsername) {
+                            return 'User name is already taken';
+                          }
+                          return null;
+                        },
+                      );
+                    }
+                  }),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _pickImage,
@@ -89,14 +100,12 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   if (_formKey.currentState!.validate()) {
                     // Create User object
                     try {
-                      bank.createUser(
-                          _fullNameController.text, _usernameController.text,
-                          _imagePath);
+                      bank.createUser(_fullNameController.text,
+                          _usernameController.text, _imagePath);
                     } on Exception catch (e) {
                       _logger.d('Failed to create user: $e');
                       ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Failed to create user: $e'))
-                      );
+                          SnackBar(content: Text('Failed to create user: $e')));
                       return;
                     }
 

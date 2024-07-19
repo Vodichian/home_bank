@@ -40,6 +40,9 @@ dependencies:
   provider: ^6.1.2
   logger: ^2.3.0
 
+  bank_server:
+    path: ../bank_server
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

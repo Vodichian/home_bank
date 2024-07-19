@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 
-import '../bank/bank.dart';
+import '../bank/bank_facade.dart';
 
 final Logger _logger = Logger(
   printer: PrettyPrinter(methodCount: 0),
@@ -21,9 +21,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Bank bank = context.read();
+    BankFacade bank = context.read();
     _logger.d('bank: ${bank.test}');
-    _logger.d('Bank has ${bank.users().length} users');
+    // _logger.d('Bank has ${bank.users().length} users');
 
     return Scaffold(
       appBar: AppBar(
