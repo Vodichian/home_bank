@@ -40,6 +40,10 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create User'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/bank_admin'),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

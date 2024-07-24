@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:home_bank/bank/bank_facade.dart';
+import 'package:home_bank/screens/admin_screen.dart';
 import 'package:home_bank/screens/create_user.dart';
 import 'package:home_bank/screens/home_screen.dart';
 import 'package:home_bank/screens/initializing_screen.dart';
 import 'package:home_bank/screens/investments_screen.dart';
 import 'package:home_bank/screens/login_screen.dart';
+import 'package:home_bank/screens/user_list_screen.dart';
 import 'package:home_bank/screens/user_screen.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
@@ -48,6 +50,7 @@ class MyApp extends StatelessWidget {
       initialLocation: '/initializing', // Set initial location
       routes: <RouteBase>[
         GoRoute(path: '/login',builder: (context, state) => const LoginScreen()),
+        GoRoute(path: '/userList',builder: (context, state) => const UserListScreen()),
         ShellRoute(
           builder: (context, state, child) {
             bool showBottomBar = state.matchedLocation != '/createUser';
@@ -87,6 +90,12 @@ class MyApp extends StatelessWidget {
               path: '/profile',
               pageBuilder: (context, state) => const NoTransitionPage(
                 child: UserScreen(),
+              ),
+            ),
+            GoRoute(
+              path: '/bank_admin',
+              pageBuilder: (context, state) => const NoTransitionPage(
+                child: AdminScreen(),
               ),
             ),
           ],
@@ -141,6 +150,9 @@ class _MainScreenState extends State<MainScreen> {
       case 2:
         context.go('/profile');
         break;
+      case 3:
+        context.go('/bank_admin');
+        break;
     }
     setState(() {
       _currentIndex = index;
@@ -166,6 +178,10 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'User',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.admin_panel_settings),
+            label: 'Bank Admin',
           ),
         ],
       ) : null,

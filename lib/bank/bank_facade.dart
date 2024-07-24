@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:bank_server/bank.dart';
 import 'package:flutter/material.dart';
 
@@ -17,12 +19,12 @@ class BankFacade extends ChangeNotifier {
     await client.connect();
   }
 
-  Future<List<User>> users() {
+  Future<List<User>> getUsers() {
     return client.getUsers();
   }
 
   Future<bool> hasUsername(String username) async {
-    List<User> userList = await users();
+    List<User> userList = await getUsers();
     return userList.any((user) => user.username == username);
   }
 
@@ -52,20 +54,7 @@ class BankFacade extends ChangeNotifier {
     return '';
   }
 
-  /// Generates a unique ID
-  ///
-  /// This simply returns the incremented value of the largest existing
-  /// userId
-  // int _generateId() {
-  //   if (_users.isEmpty) {
-  //     return 1; // start with 1
-  //   }
-  //   int largestId = _users[0].userId;
-  //   for (final user in _users) {
-  //     if (user.userId > largestId) {
-  //       largestId = user.userId;
-  //     }
-  //   }
-  //   return largestId + 1;
-  // }
+  Stream<List<User>> users() {
+    return client.users();
+  }
 }

@@ -28,7 +28,7 @@ class _InitializingScreenState extends State<InitializingScreen> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done) {
           return FutureBuilder<List<User>>(
-            future: bank.users(), builder: (context, userSnapshot) {
+            future: bank.getUsers(), builder: (context, userSnapshot) {
             if (userSnapshot.connectionState == ConnectionState.done) {
               /// TODO: Remove test code----------------------------------------
               print('Database has ${userSnapshot.data?.length ?? -1} users');
@@ -39,6 +39,7 @@ class _InitializingScreenState extends State<InitializingScreen> {
               /// END test code-------------------------------------------------
               bool hasUsers = userSnapshot.data?.isNotEmpty ?? false;
               WidgetsBinding.instance.addPostFrameCallback((_) {
+                // context.go(hasUsers ? '/userList' : '/createUser');
                 context.go(hasUsers ? '/login' : '/createUser');
               });
             }
