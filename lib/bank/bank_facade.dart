@@ -1,26 +1,18 @@
-import 'dart:math';
-
 import 'package:bank_server/bank.dart';
 import 'package:flutter/material.dart';
 
 class BankFacade extends ChangeNotifier {
   final String test; // Added variable 'test'
-  // final _users = [];
-  BankClient client = BankClient();
-
-  // final _users = [
-  //   User(fullName: "Victoria Tran-McDonald", userId: 1, username: 'Tori'),
-  //   User(fullName: "Willben Tran-McDonald", userId: 2, username: 'Will')
-  // ];
+  final BankClient _client = BankClient();
 
   BankFacade({required this.test}); // TODO: Remove this test property
 
   initialize() async {
-    await client.connect();
+    await _client.connect();
   }
 
   Future<List<User>> getUsers() {
-    return client.getUsers();
+    return _client.getUsers();
   }
 
   Future<bool> hasUsername(String username) async {
@@ -28,17 +20,22 @@ class BankFacade extends ChangeNotifier {
     return userList.any((user) => user.username == username);
   }
 
-  Future<User> createUser(String fullName, String username, String? imagePath) async {
+  /// Create a new [User]. The [id] of the newly created user is returned, or
+  /// an exception on failure.
+  Future<int> createUser(
+      String fullName, String username, String? imagePath) async {
     String failMessage = await _validate(fullName, username);
     if (failMessage.isEmpty) {
-      // var userId = _generateId();
-      User newUser =
-          User(fullName: fullName, userId: 0, username: username);
-      client.createUser(newUser);
-      return newUser;
+      User newUser = User(fullName: fullName, userId: 0, username: username);
+      int id = await _client.createUser(newUser);
+      return id;
     } else {
       throw Exception(failMessage);
     }
+  }
+
+  Future<bool> deleteUser(User user) async {
+    return await _client.deleteUser(user);
   }
 
   Future<String> _validate(String fullName, String username) async {
@@ -55,6 +52,6 @@ class BankFacade extends ChangeNotifier {
   }
 
   Stream<List<User>> users() {
-    return client.users();
+    return _client.users();
   }
 }

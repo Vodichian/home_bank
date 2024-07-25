@@ -103,22 +103,20 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
                     // Create User object
-                    try {
-                      bank.createUser(_fullNameController.text,
-                          _usernameController.text, _imagePath);
-                    } on Exception catch (e) {
-                      _logger.d('Failed to create user: $e');
+                    bank
+                        .createUser(_fullNameController.text,
+                            _usernameController.text, _imagePath)
+                        .then((onValue) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Failed to create user: $e')));
-                      return;
-                    }
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('User created!')),
-                    );
-
-                    // TODO: Find a way to include new user in navigation to HomeScreen
-                    context.go('/login');
+                        const SnackBar(content: Text('User created!')),
+                      );
+                      // TODO: Find a way to include new user in navigation to HomeScreen
+                      context.go('/login');
+                    }).catchError((onError) {
+                      _logger.d('Failed to create user: $onError');
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('Failed to create user: $onError')));
+                    });
                   }
                 },
                 child: const Text('Create User'),

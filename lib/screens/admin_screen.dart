@@ -84,17 +84,30 @@ class _AdminScreenState extends State<AdminScreen> {
                         IconButton(
                           icon: const Icon(Icons.delete),
                           onPressed: () {
-                            _logger.d('Deleting User: ${user.username}');
-                            try {
-                              // TODO: Implement _bank.deleteUser(user)
-                              // _bank.deleteUser(user);
-                            } catch (e) {
-                              var message = 'Exception caught: $e';
-                              _logger.e(message);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(message)),
-                              );
-                            }
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: const Text('Confirm Delete'),
+                                  content: Text(
+                                      'Are you sure you want to delete ${user.username}?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context)
+                                            .pop(); // Close the dialog
+                                      },
+                                      child: const Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          _executeDelete(context, user),
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
                           },
                         ),
                       ],
@@ -107,5 +120,25 @@ class _AdminScreenState extends State<AdminScreen> {
         },
       ),
     );
+  }
+
+  void _executeDelete(BuildContext context, User user) {
+    _logger.d('Deleting User: ${user.username}');
+    _bank.deleteUser(user).then(
+      (success) {
+        // show message
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('${user.username} was deleted')));
+        }
+      },
+    ).catchError((e) {
+      var message = 'Exception caught: $e';
+      _logger.e(message);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    });
+    Navigator.of(context).pop(); // Close the dialog
   }
 }
