@@ -16,7 +16,7 @@ class BankFacade extends ChangeNotifier {
 
   Future<List<User>> getUsers() {
     if (_currentUser == null) {
-      throw AuthenticationError('Authenticated user is required');
+      throw AuthenticationError('User is not logged in');
     }
     return _client.getUsers(_currentUser!);
   }
@@ -39,7 +39,7 @@ class BankFacade extends ChangeNotifier {
 
   Future<bool> deleteUser(User user) async {
     if (_currentUser == null) {
-      throw AuthenticationError('Authenticated user is required');
+      throw AuthenticationError('User is not logged in');
     }
     return await _client.deleteUser(user, _currentUser!);
   }
@@ -57,9 +57,16 @@ class BankFacade extends ChangeNotifier {
     return '';
   }
 
+  /// Logins into to the system.
+  ///
+  /// Throws [AuthenticationError] on failure
+  Future<void> login(String username, String password) async {
+    _currentUser = await _client.login(username, password);
+  }
+
   Stream<List<User>> users() {
     if (_currentUser == null) {
-      throw AuthenticationError('Authenticated user is required');
+      throw AuthenticationError('User is not logged in');
     }
     return _client.users(_currentUser!);
   }

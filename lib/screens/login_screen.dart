@@ -18,12 +18,13 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     BankFacade bank = context.read();
     _logger.d('bank: ${bank.test}');
-    // _logger.d('Bank has ${bank.users().length} users');
 
     return Scaffold(
       appBar: AppBar(
@@ -37,6 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               TextFormField(
                 decoration: const InputDecoration(labelText: 'Username'),
+                controller: _usernameController,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter your username';
@@ -47,6 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
               TextFormField(
                 obscureText: true,
                 decoration: const InputDecoration(labelText: 'Password'),
+                controller: _passwordController,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter your password';
@@ -55,25 +58,48 @@ class _LoginScreenState extends State<LoginScreen> {
                 },
               ),
               const SizedBox(height: 24,),
-              ElevatedButton(
+              ElevatedButton( // login button
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
-                    // Perform authentication check here (replace with your actual logic)
-                    bool isAuthenticated =
-                        true; // Replace with your authentication logic
+                    String username = _usernameController.text;
+                    String password = _passwordController.text;
 
-                    if (isAuthenticated) {
-                      // Navigate to the main app after successful login
-                      context.go('/');
-                    } else {
-                      // Show an error message (e.g., using a SnackBar)
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Invalid credentials')),
-                      );
-                    }
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (BuildContext context) {
+                        return FutureBuilder(
+                          future: bank.login(username, password),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: CircularProgressIndicator());
+                            } else {
+                              if (snapshot.hasError) {
+                                // Login failed
+                                return AlertDialog(
+                                  title: const Text('Login Failed'),
+                                  content: Text('Error: ${snapshot.error}'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('OK'),
+                                    ),
+                                  ],
+                                );
+                              } else {
+                                // Login successful
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  context.go('/');
+                                });
+                                return const Center(child: CircularProgressIndicator());
+                              }
+                            }
+                          },
+                        );
+                      },
+                    );
                   }
-                },
-                child: const Text('Login'),
+                },                child: const Text('Login'),
               ),
               const SizedBox(height: 24,),
               TextButton(
