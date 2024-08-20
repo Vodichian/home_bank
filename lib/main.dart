@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:home_bank/bank/bank_facade.dart';
 import 'package:home_bank/screens/admin_screen.dart';
+import 'package:home_bank/screens/connect_error_screen.dart';
 import 'package:home_bank/screens/create_user.dart';
 import 'package:home_bank/screens/home_screen.dart';
 import 'package:home_bank/screens/initializing_screen.dart';
@@ -30,31 +31,35 @@ void main() async {
     return bank;
   }
 
-  runApp(
-      ChangeNotifierProvider(
-        create: (context) => bank(),
-        child: const MyApp(),
-      )
-  );
+  runApp(ChangeNotifierProvider(
+    create: (context) => bank(),
+    child: const MyApp(),
+  ));
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-
   @override
   Widget build(BuildContext context) {
-    BankFacade bank = context.read();
     // Define GoRouter configuration
     var router = GoRouter(
       initialLocation: '/initializing', // Set initial location
       routes: <RouteBase>[
-        GoRoute(path: '/login',builder: (context, state) => const LoginScreen()),
-        GoRoute(path: '/userList',builder: (context, state) => const UserListScreen()),
+        GoRoute(
+            path: '/login', builder: (context, state) => const LoginScreen()),
+        GoRoute(
+            path: '/userList',
+            builder: (context, state) => const UserListScreen()),
         ShellRoute(
           builder: (context, state, child) {
-            bool showBottomBar = state.matchedLocation != '/createUser';
-            return MainScreen(showBottomNavigationBar: showBottomBar,child: child,);
+            bool showBottomBar = state.matchedLocation != '/createUser' &&
+                state.matchedLocation != '/initializing' &&
+                state.matchedLocation != '/connect_error';
+            return MainScreen(
+              showBottomNavigationBar: showBottomBar,
+              child: child,
+            );
           },
           routes: <RouteBase>[
             GoRoute(
@@ -65,11 +70,6 @@ class MyApp extends StatelessWidget {
             ),
             GoRoute(
               path: '/initializing',
-              // redirect: (context, state) async {
-              //   await bank.initialize();
-              //   var initialLocation = bank.users().isNotEmpty ? "/login" : "/createUser";
-              //   return initialLocation;
-              // },
               pageBuilder: (context, state) => const NoTransitionPage(
                 child: InitializingScreen(),
               ),
@@ -98,25 +98,32 @@ class MyApp extends StatelessWidget {
                 child: AdminScreen(),
               ),
             ),
+            GoRoute(
+              path: '/connect_error',
+              pageBuilder: (context, state) => const NoTransitionPage(
+                child: ConnectErrorScreen(),
+              ),
+            ),
           ],
         ),
       ],
     );
-
 
     return MaterialApp.router(
       routerConfig: router,
       title: 'Flutter Navigation Demo',
       themeMode: ThemeMode.dark,
       theme: ThemeData(
-          primarySwatch: Colors.red,
+        primarySwatch: Colors.red,
       ),
       darkTheme: ThemeData.dark().copyWith(
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
-          selectedItemColor: Colors.yellow, // Or any color that contrasts with a dark background
-          unselectedItemColor: Colors.yellow[300], // A lighter shade for unselected icons),
+          selectedItemColor: Colors.yellow,
+          // Or any color that contrasts with a dark background
+          unselectedItemColor: Colors.yellow[300],
+          // A lighter shade for unselected icons),
           showUnselectedLabels: false,
-      ),
+        ),
       ),
     );
   }
@@ -126,11 +133,8 @@ class MainScreen extends StatefulWidget {
   final Widget child;
   final bool showBottomNavigationBar;
 
-  const MainScreen({
-    super.key,
-    required this.child,
-    required this.showBottomNavigationBar
-  });
+  const MainScreen(
+      {super.key, required this.child, required this.showBottomNavigationBar});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -163,28 +167,30 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: widget.child,
-      bottomNavigationBar: widget.showBottomNavigationBar ? BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _onItemTapped,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.attach_money),
-            label: 'Investments',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'User',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.admin_panel_settings),
-            label: 'Bank Admin',
-          ),
-        ],
-      ) : null,
+      bottomNavigationBar: widget.showBottomNavigationBar
+          ? BottomNavigationBar(
+              currentIndex: _currentIndex,
+              onTap: _onItemTapped,
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home),
+                  label: 'Home',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.attach_money),
+                  label: 'Investments',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.person),
+                  label: 'User',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.admin_panel_settings),
+                  label: 'Bank Admin',
+                ),
+              ],
+            )
+          : null,
     );
   }
 }

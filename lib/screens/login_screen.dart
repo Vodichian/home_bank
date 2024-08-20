@@ -54,6 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   return null;
                 },
               ),
+              const SizedBox(height: 24,),
               ElevatedButton(
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
@@ -74,6 +75,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 },
                 child: const Text('Login'),
               ),
+              const SizedBox(height: 24,),
+              TextButton(
+                  onPressed: () => context.go('/createUser'),
+                  child: const Text('Create Account')),
             ],
           ),
         ),

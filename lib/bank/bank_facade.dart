@@ -1,9 +1,12 @@
 import 'package:bank_server/bank.dart';
 import 'package:flutter/material.dart';
 
+
 class BankFacade extends ChangeNotifier {
   final String test; // Added variable 'test'
   final BankClient _client = BankClient();
+
+  User? _currentUser;
 
   BankFacade({required this.test}); // TODO: Remove this test property
 
@@ -12,22 +15,22 @@ class BankFacade extends ChangeNotifier {
   }
 
   Future<List<User>> getUsers() {
-    return _client.getUsers();
+    if (_currentUser == null) {
+      throw AuthenticationError('Authenticated user is required');
+    }
+    return _client.getUsers(_currentUser!);
   }
 
   Future<bool> hasUsername(String username) async {
-    List<User> userList = await getUsers();
-    return userList.any((user) => user.username == username);
+    return await _client.usernameExists(username);
   }
 
   /// Create a new [User]. The [id] of the newly created user is returned, or
   /// an exception on failure.
-  Future<int> createUser(
-      String fullName, String username, String? imagePath) async {
-    String failMessage = await _validate(fullName, username);
+  Future<int> createUser(String username, String password) async {
+    String failMessage = await _validate(username, password);
     if (failMessage.isEmpty) {
-      User newUser = User(fullName: fullName, userId: 0, username: username);
-      int id = await _client.createUser(newUser);
+      int id = await _client.createUser(username, password);
       return id;
     } else {
       throw Exception(failMessage);
@@ -35,12 +38,15 @@ class BankFacade extends ChangeNotifier {
   }
 
   Future<bool> deleteUser(User user) async {
-    return await _client.deleteUser(user);
+    if (_currentUser == null) {
+      throw AuthenticationError('Authenticated user is required');
+    }
+    return await _client.deleteUser(user, _currentUser!);
   }
 
-  Future<String> _validate(String fullName, String username) async {
-    if (fullName.isEmpty) {
-      return 'Full name is a required field';
+  Future<String> _validate(String username, String password) async {
+    if (password.isEmpty) {
+      return 'Password is a required field';
     }
     if (username.isEmpty) {
       return 'Username is a required field';
@@ -52,6 +58,9 @@ class BankFacade extends ChangeNotifier {
   }
 
   Stream<List<User>> users() {
-    return _client.users();
+    if (_currentUser == null) {
+      throw AuthenticationError('Authenticated user is required');
+    }
+    return _client.users(_currentUser!);
   }
 }

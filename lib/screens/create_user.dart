@@ -19,7 +19,7 @@ final Logger _logger = Logger(
 
 class _CreateUserScreenState extends State<CreateUserScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _usernameController = TextEditingController();
   String? _imagePath;
 
@@ -42,7 +42,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
         title: const Text('Create User'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/bank_admin'),
+          onPressed: () => context.go('/login'),
         ),
       ),
       body: Padding(
@@ -53,11 +53,11 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextFormField(
-                controller: _fullNameController,
-                decoration: const InputDecoration(labelText: 'Full Name'),
+                controller: _passwordController,
+                decoration: const InputDecoration(labelText: 'Password'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter a full name';
+                    return 'Please enter a password';
                   }
                   return null;
                 },
@@ -104,8 +104,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   if (_formKey.currentState!.validate()) {
                     // Create User object
                     bank
-                        .createUser(_fullNameController.text,
-                            _usernameController.text, _imagePath)
+                        .createUser(_usernameController.text, _passwordController.text)
                         .then((onValue) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('User created!')),
@@ -130,7 +129,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
 
   @override
   void dispose() {
-    _fullNameController.dispose();
+    _passwordController.dispose();
     _usernameController.dispose();
     super.dispose();
   }

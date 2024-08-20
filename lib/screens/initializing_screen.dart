@@ -1,5 +1,5 @@
-import 'package:bank_server/bank.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -18,7 +18,16 @@ class _InitializingScreenState extends State<InitializingScreen> {
   @override
   void initState() {
     super.initState();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
     bank = context.read();
+  }
+
+  @override
+  void dispose() {
+    // Restore bottom navigation bar
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
+        overlays: SystemUiOverlay.values);
+    super.dispose();
   }
 
   @override
@@ -27,28 +36,16 @@ class _InitializingScreenState extends State<InitializingScreen> {
       future: bank.initialize(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done) {
-          return FutureBuilder<List<User>>(
-            future: bank.getUsers(), builder: (context, userSnapshot) {
-            if (userSnapshot.connectionState == ConnectionState.done) {
-              /// TODO: Remove test code----------------------------------------
-              print('Database has ${userSnapshot.data?.length ?? -1} users');
-              List<User> users = userSnapshot.data ?? List.empty();
-              for (var user in users) {
-                print('User: $user');
-              }
-              /// END test code-------------------------------------------------
-              bool hasUsers = userSnapshot.data?.isNotEmpty ?? false;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                // context.go(hasUsers ? '/userList' : '/createUser');
-                context.go(hasUsers ? '/login' : '/createUser');
-              });
-            }
-            // Show a loading indicator while fetching users
-            return const Center(child: CircularProgressIndicator());
-          },
-          );
+          if (snapshot.hasError) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              context.go('/connect_error');
+            });
+          } else {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              context.go('/login');
+            });
+          }
         }
-        // Show the initializing screen while waiting for database initialization
         return const Scaffold(
           body: Center(
             child: Column(
