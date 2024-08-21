@@ -3,15 +3,16 @@ import 'package:flutter/material.dart';
 
 
 class BankFacade extends ChangeNotifier {
-  final String test; // Added variable 'test'
+  /// Server's address, i.e 'localhost' or '192.168.1.1'
+  final String address; // Added variable 'test'
   final BankClient _client = BankClient();
 
   User? _currentUser;
 
-  BankFacade({required this.test}); // TODO: Remove this test property
+  BankFacade({this.address = 'localhost'});
 
   initialize() async {
-    await _client.connect();
+    await _client.connect(address: address);
   }
 
   Future<List<User>> getUsers() {

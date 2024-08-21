@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 
 import '../bank/bank_facade.dart';
-
-final Logger _logger = Logger(
-  printer: PrettyPrinter(methodCount: 0),
-);
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,7 +19,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     BankFacade bank = context.read();
-    _logger.d('bank: ${bank.test}');
 
     return Scaffold(
       appBar: AppBar(
@@ -57,8 +51,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 24,),
-              ElevatedButton( // login button
+              const SizedBox(
+                height: 24,
+              ),
+              ElevatedButton(
+                // login button
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
                     String username = _usernameController.text;
@@ -71,8 +68,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         return FutureBuilder(
                           future: bank.login(username, password),
                           builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const Center(child: CircularProgressIndicator());
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                  child: CircularProgressIndicator());
                             } else {
                               if (snapshot.hasError) {
                                 // Login failed
@@ -88,10 +87,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                 );
                               } else {
                                 // Login successful
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                WidgetsBinding.instance
+                                    .addPostFrameCallback((_) {
                                   context.go('/');
                                 });
-                                return const Center(child: CircularProgressIndicator());
+                                return const Center(
+                                    child: CircularProgressIndicator());
                               }
                             }
                           },
@@ -99,9 +100,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     );
                   }
-                },                child: const Text('Login'),
+                },
+                child: const Text('Login'),
               ),
-              const SizedBox(height: 24,),
+              const SizedBox(
+                height: 24,
+              ),
               TextButton(
                   onPressed: () => context.go('/createUser'),
                   child: const Text('Create Account')),

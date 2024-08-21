@@ -27,7 +27,7 @@ void main() async {
   }
 
   bank() {
-    BankFacade bank = BankFacade(test: "test1");
+    BankFacade bank = BankFacade(address: '192.168.1.200');
     return bank;
   }
 
