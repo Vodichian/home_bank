@@ -9,7 +9,8 @@ class BankFacade extends ChangeNotifier {
 
   User? _currentUser;
 
-  BankFacade({this.address = 'localhost'});
+  BankFacade({this.address = '192.168.1.40'});
+  // BankFacade({this.address = 'localhost'});
 
   initialize() async {
     await _client.connect(address: address);
@@ -70,5 +71,38 @@ class BankFacade extends ChangeNotifier {
       throw AuthenticationError('User is not logged in');
     }
     return _client.users(_currentUser!);
+  }
+
+  Future<void> disconnect() async {
+    await _client.disconnect();
+  }
+
+  /// Retrieves the [SavingsAccount] of the currently logged in user.
+  Future<SavingsAccount> getSavings() async {
+    if (_currentUser == null) {
+      throw AuthenticationError('User is not logged in');
+    }
+    return await _client.getSavingsAccountByOwner(_currentUser!);
+  }
+
+  Future<Merchant> getMerchant(int accountNumber) async {
+    if (_currentUser == null) {
+      throw AuthenticationError('User is not logged in');
+    }
+    return await _client.getMerchant(accountNumber, _currentUser!);
+  }
+
+  Future<List<Merchant>> getMerchants() async {
+    if (_currentUser == null) {
+      throw AuthenticationError('User is not logged in');
+    }
+    return await _client.getMerchants(_currentUser!);
+  }
+
+  Stream<List<BankTransaction>> transactions() {
+    if (_currentUser == null) {
+      throw AuthenticationError('User is not logged in');
+    }
+    return _client.transactions(_currentUser!);
   }
 }
