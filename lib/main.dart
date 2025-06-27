@@ -8,11 +8,15 @@ import 'package:home_bank/screens/home_screen.dart';
 import 'package:home_bank/screens/initializing_screen.dart';
 import 'package:home_bank/screens/investments_screen.dart';
 import 'package:home_bank/screens/login_screen.dart';
+import 'package:home_bank/screens/services_hub_screen.dart';
+import 'package:home_bank/screens/transaction_approval_screen.dart';
 import 'package:home_bank/screens/user_list_screen.dart';
 import 'package:home_bank/screens/user_screen.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
 import 'dart:io' show Platform;
+
+import 'models/pending_transaction.dart';
 
 void main() async {
   if (Platform.isWindows) {
@@ -52,6 +56,26 @@ class MyApp extends StatelessWidget {
         GoRoute(
             path: '/userList',
             builder: (context, state) => const UserListScreen()),
+        GoRoute(
+          path: '/approve-transaction',
+          name: 'approveTransaction', // Optional, but good for context.goNamed
+          builder: (context, state) {
+            // Extract the PendingTransaction object passed as 'extra'
+            final pendingTx = state.extra as PendingTransaction?;
+
+            if (pendingTx == null) {
+              // This case should ideally not be reached if you always pass 'extra'
+              // You might want to navigate to an error screen or back
+              // For simplicity, returning a basic error message screen:
+              return Scaffold(
+                appBar: AppBar(title: const Text('Error')),
+                body:
+                    const Center(child: Text('Transaction details not found.')),
+              );
+            }
+            return TransactionApprovalScreen(pendingTransaction: pendingTx);
+          },
+        ),
         ShellRoute(
           builder: (context, state, child) {
             bool showBottomBar = state.matchedLocation != '/createUser' &&
@@ -64,9 +88,15 @@ class MyApp extends StatelessWidget {
           },
           routes: <RouteBase>[
             GoRoute(
-              path: '/',
+              path: '/home',
               pageBuilder: (context, state) => const NoTransitionPage(
                 child: HomeScreen(),
+              ),
+            ),
+            GoRoute(
+              path: '/services', // New route for the Services tab
+              pageBuilder: (context, state) => const NoTransitionPage(
+                child: ServicesHubScreen(),
               ),
             ),
             GoRoute(
@@ -142,35 +172,74 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
+  // int _currentIndex = 0;
+
+  int _calculateSelectedIndex(BuildContext context) {
+    // Use GoRouterState.of(context) to get the current location
+    final String location = GoRouterState.of(context).matchedLocation;
+    // It's often more reliable to use GoRouterState.of(context).uri.toString() for full path
+    // final String location = GoRouterState.of(context).uri.toString();
+
+    // IMPORTANT: Ensure these paths match EXACTLY what you defined in GoRouter
+    // and represent the root of each tab.
+    if (location.startsWith('/home')) {
+      // Or your first tab's root path e.g. /investments
+      return 0;
+    } else if (location.startsWith('/investments')) {
+      return 1;
+    } else if (location.startsWith('/services')) {
+      return 2;
+    } else if (location.startsWith('/profile')) {
+      return 3;
+    } else if (location.startsWith('/bank_admin')) {
+      return 4;
+    }
+    // Fallback if no specific tab matches (e.g., if on a detail page like /investments
+    // that isn't the direct root of a tab but you still want a tab to appear selected)
+    // This part might need adjustment based on your exact routing structure and desired behavior.
+    // For example, if /investments is within the 'home' tab conceptually:
+    if (location.startsWith('/investments') &&
+        !location.startsWith('/services')) {
+      // A more specific check
+      // return 0; // Assume it belongs to the first tab.
+    }
+
+    // Default to 0 or an appropriate index if the logic above doesn't catch all cases.
+    // This can happen if you navigate to a sub-route of a tab that isn't explicitly handled above
+    // or if a route doesn't neatly fall into a tab's root.
+    // print("Current location for tab index: $location, defaulting index.");
+    return 0; // Or handle as an error/log if an unknown state.
+  }
 
   void _onItemTapped(int index) {
     switch (index) {
       case 0:
-        context.go('/');
+        context.go('/home');
         break;
       case 1:
         context.go('/investments');
         break;
       case 2:
-        context.go('/profile');
+        context.go('/services');
         break;
       case 3:
+        context.go('/profile');
+        break;
+      case 4:
         context.go('/bank_admin');
         break;
     }
-    setState(() {
-      _currentIndex = index;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentTabIndex = _calculateSelectedIndex(context);
+
     return Scaffold(
       body: widget.child,
       bottomNavigationBar: widget.showBottomNavigationBar
           ? BottomNavigationBar(
-              currentIndex: _currentIndex,
+              currentIndex: currentTabIndex,
               onTap: _onItemTapped,
               items: const [
                 BottomNavigationBarItem(
@@ -182,8 +251,12 @@ class _MainScreenState extends State<MainScreen> {
                   label: 'Investments',
                 ),
                 BottomNavigationBarItem(
+                  icon: Icon(Icons.miscellaneous_services),
+                  label: 'Services',
+                ),
+                BottomNavigationBarItem(
                   icon: Icon(Icons.person),
-                  label: 'User',
+                  label: 'Profile',
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.admin_panel_settings),

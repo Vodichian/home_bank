@@ -89,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 // Login successful
                                 WidgetsBinding.instance
                                     .addPostFrameCallback((_) {
-                                  context.go('/');
+                                  context.go('/home');
                                 });
                                 return const Center(
                                     child: CircularProgressIndicator());

@@ -127,7 +127,7 @@ class _AdminScreenState extends State<AdminScreen> {
     _bank.deleteUser(user).then(
       (success) {
         // show message
-        if (success) {
+        if (success && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('${user.username} was deleted')));
         }
@@ -135,9 +135,11 @@ class _AdminScreenState extends State<AdminScreen> {
     ).catchError((e) {
       var message = 'Exception caught: $e';
       _logger.e(message);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
     });
     Navigator.of(context).pop(); // Close the dialog
   }
