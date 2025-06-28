@@ -76,8 +76,6 @@ class PendingTransaction {
             null, 'sourceAccountId is required for Transfer.');
         assert(recipientUserId !=
             null, 'recipientUserId is required for Transfer.');
-        assert(targetAccountId !=
-            null, "targetAccountId (recipient's savings) is required for Transfer.");
         break;
       case PendingTransactionType.payment:
         assert(sourceAccountId !=
@@ -140,9 +138,7 @@ class PendingTransaction {
     required int sourceSavingsAccountId,
     String? recipientUserUsername,
     required int recipientUserId,
-    required int recipientSavingsAccountId,
     String? sourceSavingsAccountNickname,
-    String? recipientSavingsAccountNickname,
     String? notes,
   }) {
     return PendingTransaction._(
@@ -156,9 +152,6 @@ class PendingTransaction {
       sourceAccountNickname: sourceSavingsAccountNickname,
       recipientUserId: recipientUserId,
       recipientUserUsername: recipientUserUsername,
-      targetAccountId: recipientSavingsAccountId,
-      // This is the recipient's account
-      targetAccountNickname: recipientSavingsAccountNickname,
       notes: notes,
     );
   }
@@ -267,8 +260,7 @@ class PendingTransaction {
         return 'Transfer \$${amount.toStringAsFixed(
             2)} from ${sourceAccountNickname ??
             'Account ID: $sourceAccountId'} to ${recipientUserUsername ??
-            'User ID: $recipientUserId'} (${targetAccountNickname ??
-            'Account ID: $targetAccountId'})';
+            'User ID: $recipientUserId'}';
       case PendingTransactionType.payment:
         return 'Pay \$${amount.toStringAsFixed(2)} to ${merchantName ??
             'Merchant ID: $merchantId'} from ${sourceAccountNickname ??

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:home_bank/screens/transfer_money_screen.dart';
 import 'package:home_bank/screens/withdraw_funds_screen.dart';
 import 'package:home_bank/utils/globals.dart';
 import 'add_funds_screen.dart';
@@ -22,7 +23,8 @@ class ServicesHubScreen extends StatelessWidget {
         // context.read<BankFacade>().fetchLatestBalance(); // Example
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Funds action completed successfully.')), // Updated message
+              content: Text(
+                  'Funds action completed successfully.')), // Updated message
         );
         logger.d("Add Funds screen popped with success.");
       } else {
@@ -40,18 +42,22 @@ class ServicesHubScreen extends StatelessWidget {
       if (result == true && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Funds withdrawn successfully.')), // Specific message
+              content:
+                  Text('Funds withdrawn successfully.')), // Specific message
         );
         logger.d("Withdraw Funds screen popped with success.");
-      } else if (context.mounted) { // Ensure context is mounted
-        logger.d("Withdraw Funds screen popped (no action, failed, or cancelled).");
+      } else if (context.mounted) {
+        // Ensure context is mounted
+        logger.d(
+            "Withdraw Funds screen popped (no action, failed, or cancelled).");
         // Optionally, show a generic message if needed, or nothing
         // ScaffoldMessenger.of(context).showSnackBar(
         //   const SnackBar(content: Text('Withdraw funds action concluded.')),
         // );
       }
     });
-    logger.d("Navigating to Withdraw Funds Screen");  }
+    logger.d("Navigating to Withdraw Funds Screen");
+  }
 
   void _navigateToPayments(BuildContext context) {
     logger.d("Navigate to Payments");
@@ -63,12 +69,23 @@ class ServicesHubScreen extends StatelessWidget {
   }
 
   void _navigateToTransfer(BuildContext context) {
-    logger.d("Navigate to Transfer");
-    // TODO: Implement Transfer screen/modal (likely involving user list)
-    // Example: context.push('/transfer-screen');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Transfer action (placeholder).')),
-    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const TransferMoneyScreen()),
+    ).then((result) {
+      if (result == true && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Money transfer action completed successfully.')),
+        );
+        logger.d("Transfer Money screen popped with success.");
+      } else if (context.mounted) {
+        logger.d(
+            "Transfer Money screen popped (no action, failed, or cancelled).");
+        // Optionally, show a generic message if needed
+      }
+    });
+    logger.d("Navigating to Transfer Money Screen");
   }
 
   @override
@@ -76,7 +93,8 @@ class ServicesHubScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Financial Services'), // Clearer title
-        automaticallyImplyLeading: false, // No back button for a tab's root screen
+        automaticallyImplyLeading:
+            false, // No back button for a tab's root screen
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -168,10 +186,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        bottom: MediaQuery
-            .of(context)
-            .viewInsets
-            .bottom, // For keyboard
+        bottom: MediaQuery.of(context).viewInsets.bottom, // For keyboard
         left: 20,
         right: 20,
         top: 20,
@@ -182,10 +197,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text('Add Funds', style: Theme
-                .of(context)
-                .textTheme
-                .headlineSmall),
+            Text('Add Funds', style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 20),
             TextFormField(
               controller: _amountController,
@@ -194,8 +206,8 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                 prefixText: '\$',
                 border: OutlineInputBorder(),
               ),
-              keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter an amount.';

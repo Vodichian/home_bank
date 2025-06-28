@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:home_bank/models/pending_transaction.dart'; // Adjust import path as needed
-// import 'package:uuid/uuid.dart'; // If you use it directly for IDs in tests
 
 void main() {
   // --- Test Data ---
@@ -15,13 +14,11 @@ void main() {
   const String testSourceAccountNickname = 'Source Account Nickname';
   const int testRecipientUserId = 404;
   const String testRecipientUserUsername = 'Recipient Username';
-  const int testRecipientSavingsAccountId = 505;
-  const String testRecipientSavingsAccountNickname = 'Recipient Savings Nickname';
   const int testMerchantId = 789; // Was already int
   const String testMerchantName = 'Test Merchant';
   const String testNotes = 'Test transaction notes';
-  final DateTime fixedTestTimestamp = DateTime(
-      2023, 11, 15, 10, 30, 0); // Fixed for predictable JSON
+  final DateTime fixedTestTimestamp =
+      DateTime(2023, 11, 15, 10, 30, 0); // Fixed for predictable JSON
 
   group('PendingTransaction Enum Helpers', () {
     test('pendingTransactionTypeToString works correctly', () {
@@ -121,9 +118,6 @@ void main() {
         recipientUserId: testRecipientUserId,
         // Now int
         recipientUserUsername: testRecipientUserUsername,
-        recipientSavingsAccountId: testRecipientSavingsAccountId,
-        // Now int
-        recipientSavingsAccountNickname: testRecipientSavingsAccountNickname,
         notes: testNotes,
       );
 
@@ -133,8 +127,6 @@ void main() {
       expect(transaction.initiatingUserId, testInitiatingUserId);
       expect(transaction.sourceAccountId, testSourceAccountId);
       expect(transaction.recipientUserId, testRecipientUserId);
-      expect(transaction.targetAccountId,
-          testRecipientSavingsAccountId); // Recipient's savings is the target
       // Check that fields for other types are null
       expect(transaction.merchantId, isNull);
     });
@@ -192,7 +184,6 @@ void main() {
       sampleAddFundsTx = PendingTransaction.fromJson(jsonMap);
     });
 
-
     test('toJson creates correct map', () {
       final json = sampleAddFundsTx.toJson();
 
@@ -237,12 +228,18 @@ void main() {
       expect(jsonString, contains('"id":"$testPendingId"'));
       expect(jsonString, contains('"type":"addFunds"'));
       expect(jsonString, contains('"amount":$testAmount'));
-      expect(jsonString, contains(
-          '"initiatingUserId":$testInitiatingUserId')); // Check int serialization
-      expect(jsonString, contains(
-          '"targetAccountId":$testTargetAccountId')); // Check int serialization
-      expect(jsonString, contains(
-          '"requestTimestamp":"${fixedTestTimestamp.toIso8601String()}"'));
+      expect(
+          jsonString,
+          contains(
+              '"initiatingUserId":$testInitiatingUserId')); // Check int serialization
+      expect(
+          jsonString,
+          contains(
+              '"targetAccountId":$testTargetAccountId')); // Check int serialization
+      expect(
+          jsonString,
+          contains(
+              '"requestTimestamp":"${fixedTestTimestamp.toIso8601String()}"'));
     });
 
     test('fromJsonString creates correct object', () {
@@ -338,29 +335,27 @@ void main() {
 
     test('description for transfer is correct', () {
       final tx = PendingTransaction.transfer(
-          pendingId: 'id1',
-          amount: 100,
-          initiatingUserId: 1,
-          sourceSavingsAccountId: 301,
-          sourceSavingsAccountNickname: 'My Source',
-          recipientUserId: 2,
-          recipientUserUsername: 'John Doe',
-          recipientSavingsAccountId: 401,
-          recipientSavingsAccountNickname: 'John Savings');
+        pendingId: 'id1',
+        amount: 100,
+        initiatingUserId: 1,
+        sourceSavingsAccountId: 301,
+        sourceSavingsAccountNickname: 'My Source',
+        recipientUserId: 2,
+        recipientUserUsername: 'John Doe',
+      );
       expect(tx.description,
-          'Transfer \$100.00 from My Source to John Doe (John Savings)');
+          'Transfer \$100.00 from My Source to John Doe');
 
       final txPartialNames = PendingTransaction.transfer(
-          pendingId: 'id2',
-          amount: 100,
-          initiatingUserId: 1,
-          sourceSavingsAccountId: 302,
-          // Source ID
-          recipientUserId: 3,
-          // Recipient User ID
-          recipientSavingsAccountId: 402); // Recipient Account ID
+        pendingId: 'id2',
+        amount: 100,
+        initiatingUserId: 1,
+        sourceSavingsAccountId: 302,
+        // Source ID
+        recipientUserId: 3,
+      );
       expect(txPartialNames.description,
-          'Transfer \$100.00 from Account ID: 302 to User ID: 3 (Account ID: 402)');
+          'Transfer \$100.00 from Account ID: 302 to User ID: 3');
     });
 
     test('description for payment is correct', () {
@@ -381,8 +376,8 @@ void main() {
           sourceSavingsAccountId: 502,
           // Source ID only
           merchantId: 124 // Merchant ID only
-        // merchantName is null
-      );
+          // merchantName is null
+          );
       expect(txMerchantIdOnly.description,
           'Pay \$20.00 to Merchant ID: 124 from Account ID: 502');
     });
