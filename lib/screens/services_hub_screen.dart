@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:home_bank/screens/withdraw_funds_screen.dart';
 import 'package:home_bank/utils/globals.dart';
 import 'add_funds_screen.dart';
 
@@ -32,13 +33,25 @@ class ServicesHubScreen extends StatelessWidget {
   }
 
   void _navigateToWithdraw(BuildContext context) {
-    logger.d("Navigate to Withdraw");
-    // TODO: Implement Withdraw screen/modal
-    // Example: context.push('/withdraw-screen'); OR showModalBottomSheet(...)
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Withdraw action (placeholder).')),
-    );
-  }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const WithdrawFundsScreen()),
+    ).then((result) {
+      if (result == true && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Funds withdrawn successfully.')), // Specific message
+        );
+        logger.d("Withdraw Funds screen popped with success.");
+      } else if (context.mounted) { // Ensure context is mounted
+        logger.d("Withdraw Funds screen popped (no action, failed, or cancelled).");
+        // Optionally, show a generic message if needed, or nothing
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   const SnackBar(content: Text('Withdraw funds action concluded.')),
+        // );
+      }
+    });
+    logger.d("Navigating to Withdraw Funds Screen");  }
 
   void _navigateToPayments(BuildContext context) {
     logger.d("Navigate to Payments");
