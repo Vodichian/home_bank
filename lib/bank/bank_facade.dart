@@ -102,6 +102,24 @@ class BankFacade extends ChangeNotifier {
     return await _client.getSavingsAccountByOwner(_currentUser!);
   }
 
+  /// Listens for real-time updates to the SavingsAccount of the currently logged-in user.
+  ///
+  /// Emits new [SavingsAccount] states whenever changes occur on the server.
+  /// Throws [AuthenticationError] if the user is not logged in.
+  Stream<SavingsAccount> listenSavingsAccount() {
+    if (_currentUser == null) {
+      // Option 1: Throw immediately if not logged in
+      throw AuthenticationError('User is not logged in to listen to savings account.');
+      // Option 2: Return an error stream
+      // return Stream.error(AuthenticationError('User is not logged in to listen to savings account.'));
+    }
+    // Assuming the user is always listening to their OWN savings account.
+    // If an admin could listen to others, you'd need to pass ownerUserId.
+    // This is a definite possibility down the road.
+    return _client.listenSavingsAccount(_currentUser!, _currentUser!.userId);
+  }
+
+
   Future<Merchant> getMerchant(int accountNumber) async {
     if (_currentUser == null) {
       throw AuthenticationError('User is not logged in');
