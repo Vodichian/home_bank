@@ -107,11 +107,12 @@ class AdminDashboardScreen extends StatelessWidget {
                   iconColor: Colors.tealAccent,
                   route: '',
                 ),
-                const ManagementCard(
+                ManagementCard(
                   title: 'Merchant Management',
                   icon: Icons.store_outlined,
                   iconColor: Colors.orangeAccent,
-                  route: '',
+                  route: '/admin/merchant-management',
+                  onTapAction: (route) => context.push(route),
                 ),
                 const ManagementCard(
                   title: 'Transaction Logs',

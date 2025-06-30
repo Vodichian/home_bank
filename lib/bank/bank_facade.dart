@@ -111,7 +111,8 @@ class BankFacade extends ChangeNotifier {
   Stream<SavingsAccount> listenSavingsAccount() {
     if (_currentUser == null) {
       // Option 1: Throw immediately if not logged in
-      throw AuthenticationError('User is not logged in to listen to savings account.');
+      throw AuthenticationError(
+          'User is not logged in to listen to savings account.');
       // Option 2: Return an error stream
       // return Stream.error(AuthenticationError('User is not logged in to listen to savings account.'));
     }
@@ -120,7 +121,6 @@ class BankFacade extends ChangeNotifier {
     // This is a definite possibility down the road.
     return _client.listenSavingsAccount(_currentUser!, _currentUser!.userId);
   }
-
 
   Future<Merchant> getMerchant(int accountNumber) async {
     if (_currentUser == null) {
@@ -134,6 +134,13 @@ class BankFacade extends ChangeNotifier {
       throw AuthenticationError('User is not logged in');
     }
     return await _client.getMerchants(_currentUser!);
+  }
+
+  Stream<List<Merchant>> merchants() {
+    if (_currentUser == null) {
+      throw AuthenticationError('User is not logged in');
+    }
+    return _client.merchants(_currentUser!);
   }
 
   Stream<List<BankTransaction>> transactions() {
@@ -292,5 +299,37 @@ class BankFacade extends ChangeNotifier {
           'BankFacade.processTransaction: Generic error for PendingTx ID ${pendingTx.id} (Type: ${pendingTx.type}) - $e');
       rethrow;
     }
+  }
+
+  Future<void> updateMerchant(Merchant updatedMerchant) async {
+    if (_currentUser == null) {
+      throw AuthenticationError('User is not logged in');
+    } else if (!_currentUser!.isAdmin) {
+      throw AuthenticationError('An admin is required to update a merchant');
+    }
+    throw StateError("Not implemented");
+    // await _client.updateMerchant(updatedMerchant, _currentUser!);
+  }
+
+  Future<void> createMerchant(
+    String name,
+    String description,
+  ) async {
+    if (_currentUser == null) {
+      throw AuthenticationError('User is not logged in');
+    } else if (!_currentUser!.isAdmin) {
+      throw AuthenticationError('An admin is required to create a merchant');
+    }
+    Merchant merchant = Merchant(name: name, description: description);
+    await _client.addMerchant(merchant, _currentUser!);
+  }
+
+  Future<void> deleteMerchant(Merchant merchantToDelete) async {
+    if (_currentUser == null) {
+      throw AuthenticationError('User is not logged in');
+    } else if (!_currentUser!.isAdmin) {
+      throw AuthenticationError('An admin is required to delete a merchant');
+    }
+    await _client.removeMerchant(merchantToDelete, _currentUser!);
   }
 }

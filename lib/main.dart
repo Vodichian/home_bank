@@ -8,6 +8,7 @@ import 'package:home_bank/screens/home_screen.dart';
 import 'package:home_bank/screens/initializing_screen.dart';
 import 'package:home_bank/screens/investments_screen.dart';
 import 'package:home_bank/screens/login_screen.dart';
+import 'package:home_bank/screens/merchant_management_screen.dart';
 import 'package:home_bank/screens/services_hub_screen.dart';
 import 'package:home_bank/screens/transaction_approval_screen.dart';
 import 'package:home_bank/screens/user_management_screen.dart';
@@ -94,6 +95,28 @@ class MyApp extends StatelessWidget {
             return null; // Allow access if logged in and is admin
           },
         ),
+
+        // NEW Route for Merchant Management
+        GoRoute(
+          path: '/admin/merchant-management',
+          name: 'merchantManagement',
+          builder: (context, state) => const MerchantManagementScreen(),
+          redirect: (BuildContext context, GoRouterState state) async {
+            final bankFacade = Provider.of<BankFacade>(context, listen: false);
+            if (bankFacade.currentUser == null) {
+              logger.d("MerchantManagement: User not logged in, redirecting to /login");
+              return '/login'; // Redirect to login if not logged in
+            }
+            if (!bankFacade.currentUser!.isAdmin) {
+              logger.e(
+                  "Access denied to /admin/merchant-management for non-admin user ${bankFacade.currentUser?.username}. Redirecting to /home.");
+              return '/home'; // Or '/bank_admin' to send them back to the admin dashboard
+            }
+            logger.d("MerchantManagement: Access granted for admin ${bankFacade.currentUser?.username}");
+            return null; // Allow access if logged in and is admin
+          },
+        ),
+
         ShellRoute(
           builder: (context, state, child) {
             bool showBottomBar = state.matchedLocation != '/createUser' &&
