@@ -453,7 +453,7 @@ class _TransferMoneyScreenState extends State<TransferMoneyScreen> {
                     });
                   },
                 ),
-                tileColor: Colors.blue.withOpacity(0.1),
+                tileColor: Colors.blue.withValues(alpha: 0.1),
               )
             else if (_searchController.text.isNotEmpty && _filteredUsers.isEmpty)
               const Padding(
