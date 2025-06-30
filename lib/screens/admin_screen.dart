@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -93,37 +94,43 @@ class AdminDashboardScreen extends StatelessWidget {
               crossAxisSpacing: 16.0,
               mainAxisSpacing: 16.0,
               children: [
-                const ManagementCard(
+                ManagementCard(
                   title: 'User Management',
-                  icon: Icons.people_alt_outlined, // Using outlined version
+                  icon: Icons.people_alt_outlined,
                   iconColor: Colors.deepPurpleAccent,
-                  // Use more specific theme colors or specific vibrant colors
+                  route: '/admin/user-management',
+                  onTapAction: (route) => context.push(route),
                 ),
                 const ManagementCard(
                   title: 'Server Management',
                   icon: Icons.dns_outlined,
                   iconColor: Colors.tealAccent,
+                  route: '',
                 ),
                 const ManagementCard(
                   title: 'Merchant Management',
                   icon: Icons.store_outlined,
                   iconColor: Colors.orangeAccent,
+                  route: '',
                 ),
                 const ManagementCard(
-                  title: 'Transaction Logs', // Renamed for clarity
+                  title: 'Transaction Logs',
                   icon: Icons.receipt_long_outlined,
                   iconColor: Colors.redAccent,
+                  route: '',
                 ),
                 const ManagementCard(
-                  title: 'Investment Oversight', // Renamed for clarity
+                  title: 'Investment Oversight',
                   icon: Icons.show_chart_rounded,
                   iconColor: Colors.greenAccent,
+                  route: '',
                 ),
                 ManagementCard(
                   title: 'System Settings',
                   icon: Icons.settings_outlined,
-                  iconColor: Colors
-                      .blueGrey.shade300, // A lighter blueGrey for accents
+                  iconColor: Colors.blueGrey.shade300,
+                  // A lighter blueGrey for accents
+                  route: '',
                 ),
               ],
             ),
@@ -139,6 +146,9 @@ class ManagementCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color iconColor;
+  final String route;
+  final void Function(String route)? onTapAction;
+
   // The overall card color will be theme-based
 
   const ManagementCard({
@@ -146,6 +156,8 @@ class ManagementCard extends StatelessWidget {
     required this.title,
     required this.icon,
     required this.iconColor,
+    required this.route,
+    this.onTapAction,
   });
 
   @override
@@ -175,19 +187,25 @@ class ManagementCard extends StatelessWidget {
       // Ensures InkWell respects border radius
       child: InkWell(
         onTap: () {
-          // In a real app, you would navigate to the respective screen here
-          // Example: context.go('/admin/user-management');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Navigating to $title'),
-              duration: const Duration(seconds: 1),
-              behavior: SnackBarBehavior.floating, // More modern look
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
+          if (onTapAction != null) {
+            onTapAction!(route); // Use the provided action
+          } else { // Fallback to original behavior if no action is provided
+            if (route.isNotEmpty) {
+              // Default to push for better back navigation from detail screens
+              context.push(route); // <--- ENSURE THIS USES PUSH
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Navigating to $title (Placeholder)'),
+                  duration: const Duration(seconds: 1),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              );
+            }
+          }
+        },        borderRadius: BorderRadius.circular(16),
         splashColor: iconColor.withValues(alpha: 0.1),
         highlightColor: iconColor.withValues(alpha: 0.05),
         child: Padding(

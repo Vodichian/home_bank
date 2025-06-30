@@ -10,7 +10,9 @@ import 'package:home_bank/screens/investments_screen.dart';
 import 'package:home_bank/screens/login_screen.dart';
 import 'package:home_bank/screens/services_hub_screen.dart';
 import 'package:home_bank/screens/transaction_approval_screen.dart';
+import 'package:home_bank/screens/user_management_screen.dart';
 import 'package:home_bank/screens/user_screen.dart';
+import 'package:home_bank/utils/globals.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
 import 'dart:io' show Platform;
@@ -70,6 +72,26 @@ class MyApp extends StatelessWidget {
               );
             }
             return TransactionApprovalScreen(pendingTransaction: pendingTx);
+          },
+        ),
+        // Route for User Management (as used in admin_screen.dart)
+        GoRoute(
+          path: '/admin/user-management', // <--- THIS PATH MATCHES THE ManagementCard
+          name: 'userManagement',         // Optional: for named navigation
+          builder: (context, state) => const UserManagementScreen(),
+          redirect: (BuildContext context, GoRouterState state) async {
+            final bankFacade = Provider.of<BankFacade>(context, listen: false);
+            // Ensure BankFacade is initialized and currentUser is accessible
+            if (bankFacade.currentUser == null) {
+              return '/login'; // Redirect to login if not logged in
+            }
+            if (!bankFacade.currentUser!.isAdmin) {
+              // If logged in user is not admin, redirect them.
+              // You might want a specific '/access-denied' screen or redirect to '/home'.
+              logger.e("Access denied to /admin/user-management for non-admin user. Redirecting to /home.");
+              return '/home'; // Or '/bank_admin' to send them back to the admin dashboard
+            }
+            return null; // Allow access if logged in and is admin
           },
         ),
         ShellRoute(

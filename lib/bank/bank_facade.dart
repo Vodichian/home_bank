@@ -47,6 +47,8 @@ class BankFacade extends ChangeNotifier {
   Future<bool> deleteUser(User user) async {
     if (_currentUser == null) {
       throw AuthenticationError('User is not logged in');
+    } else if (!_currentUser!.isAdmin) {
+      throw AuthenticationError('An admin is required to delete a user');
     }
     return await _client.deleteUser(user, _currentUser!);
   }
