@@ -1,146 +1,233 @@
-import 'package:bank_server/bank.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:logger/logger.dart';
-import 'package:provider/provider.dart';
 
-import '../bank/bank_facade.dart';
-
-final Logger _logger = Logger(
-  printer: PrettyPrinter(methodCount: 0),
-);
-
-class AdminScreen extends StatefulWidget {
-  const AdminScreen({super.key});
-
-  @override
-  State<AdminScreen> createState() => _AdminScreenState();
-}
-
-class _AdminScreenState extends State<AdminScreen> {
-  late BankFacade _bank;
-  int? _expandedIndex; // Track the currently expanded tile
-
-  @override
-  void initState() {
-    super.initState();
-    _bank = context.read();
-  }
+class AdminDashboardScreen extends StatelessWidget {
+  const AdminDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Determine if the current theme is dark
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('User List'),
+        title: const Text('Admin Dashboard'),
+        centerTitle: true,
+        // Use theme colors for better adaptability
+        backgroundColor: isDarkMode ? colorScheme.surface : colorScheme.primary,
+        foregroundColor:
+            isDarkMode ? colorScheme.onSurface : colorScheme.onPrimary,
+        elevation: 2, // Softer elevation
+        // Removed shape for a cleaner look, but can be added back if preferred
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          context.go('/createUser');
-        },
-        child: const Icon(Icons.add),
-      ),
-      body: StreamBuilder<List<User>>(
-        stream: _bank.users(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No users found.'));
-          } else {
-            List<User> users = snapshot.data!;
-            return ListView.builder(
-              itemCount: users.length,
-              itemBuilder: (context, index) {
-                User user = users[index];
-                return ExpansionTile(
-                  title: Text(user.username),
-                  initiallyExpanded: index == _expandedIndex,
-                  // Control expansion
-                  onExpansionChanged: (isExpanded) {
-                    setState(() {
-                      if (isExpanded) {
-                        _expandedIndex = index;
-                      } else {
-                        _expandedIndex = null;
-                      }
-                    });
-                  },
+      body: SingleChildScrollView(
+        // Added for responsiveness on smaller screens
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Welcome section
+            Card(
+              elevation: 2,
+              // Use theme-aware background color for the card itself
+              color: colorScheme.surfaceContainerHighest,
+              // Good for cards
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              margin: const EdgeInsets.only(bottom: 24),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Row(
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () {
-                            const message = 'Edit User not yet implemented';
-                            _logger.d(message);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text(message)),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (BuildContext context) {
-                                return AlertDialog(
-                                  title: const Text('Confirm Delete'),
-                                  content: Text(
-                                      'Are you sure you want to delete ${user.username}?'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.of(context)
-                                            .pop(); // Close the dialog
-                                      },
-                                      child: const Text('Cancel'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () =>
-                                          _executeDelete(context, user),
-                                      child: const Text('Delete'),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ],
+                    Icon(
+                      Icons.admin_panel_settings_rounded,
+                      // Using rounded version
+                      size: 48,
+                      // Use a prominent color, adaptable to theme
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Welcome, Admin!',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  // Use theme's onSurfaceVariant for text on surfaceVariant
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Manage your Home Bank application here.',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.8),
+                                ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
-                );
-              },
-            );
-          }
-        },
+                ),
+              ),
+            ),
+            // Grid of management options
+            GridView.count(
+              physics: const NeverScrollableScrollPhysics(),
+              // Grid shouldn't scroll independently
+              shrinkWrap: true,
+              // Grid takes only necessary space
+              crossAxisCount: MediaQuery.of(context).size.width > 700
+                  ? 3 // Adjusted breakpoint for 3 columns
+                  : 2,
+              crossAxisSpacing: 16.0,
+              mainAxisSpacing: 16.0,
+              children: [
+                const ManagementCard(
+                  title: 'User Management',
+                  icon: Icons.people_alt_outlined, // Using outlined version
+                  iconColor: Colors.deepPurpleAccent,
+                  // Use more specific theme colors or specific vibrant colors
+                ),
+                const ManagementCard(
+                  title: 'Server Management',
+                  icon: Icons.dns_outlined,
+                  iconColor: Colors.tealAccent,
+                ),
+                const ManagementCard(
+                  title: 'Merchant Management',
+                  icon: Icons.store_outlined,
+                  iconColor: Colors.orangeAccent,
+                ),
+                const ManagementCard(
+                  title: 'Transaction Logs', // Renamed for clarity
+                  icon: Icons.receipt_long_outlined,
+                  iconColor: Colors.redAccent,
+                ),
+                const ManagementCard(
+                  title: 'Investment Oversight', // Renamed for clarity
+                  icon: Icons.show_chart_rounded,
+                  iconColor: Colors.greenAccent,
+                ),
+                ManagementCard(
+                  title: 'System Settings',
+                  icon: Icons.settings_outlined,
+                  iconColor: Colors
+                      .blueGrey.shade300, // A lighter blueGrey for accents
+                ),
+              ],
+            ),
+            const SizedBox(height: 20), // Added some padding at the bottom
+          ],
+        ),
       ),
     );
   }
+}
 
-  void _executeDelete(BuildContext context, User user) {
-    _logger.d('Deleting User: ${user.username}');
-    _bank.deleteUser(user).then(
-      (success) {
-        // show message
-        if (success && context.mounted) {
+class ManagementCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Color iconColor;
+  // The overall card color will be theme-based
+
+  const ManagementCard({
+    super.key,
+    required this.title,
+    required this.icon,
+    required this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    // Determine card background and shadow based on theme
+    final Color cardBackgroundColor = isDarkMode
+        ? colorScheme.surfaceContainerHighest
+            .withValues(alpha: 0.5) // Slightly transparent for depth in dark
+        : colorScheme
+            .surfaceContainerHighest; // A slightly elevated surface in light
+
+    final Color shadowColor =
+        iconColor.withValues(alpha: isDarkMode ? 0.3 : 0.2);
+
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16), // Consistent rounded corners
+      ),
+      shadowColor: shadowColor,
+      color: cardBackgroundColor,
+      // Explicitly set card background
+      clipBehavior: Clip.antiAlias,
+      // Ensures InkWell respects border radius
+      child: InkWell(
+        onTap: () {
+          // In a real app, you would navigate to the respective screen here
+          // Example: context.go('/admin/user-management');
           ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${user.username} was deleted')));
-        }
-      },
-    ).catchError((e) {
-      var message = 'Exception caught: $e';
-      _logger.e(message);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
-      }
-    });
-    Navigator.of(context).pop(); // Close the dialog
+            SnackBar(
+              content: Text('Navigating to $title'),
+              duration: const Duration(seconds: 1),
+              behavior: SnackBarBehavior.floating, // More modern look
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        splashColor: iconColor.withValues(alpha: 0.1),
+        highlightColor: iconColor.withValues(alpha: 0.05),
+        child: Padding(
+          // Added padding inside InkWell
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                // Optional: Decorated container for the icon
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.15),
+                  // Light background for the icon itself
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  size: 40, // Slightly reduced for better balance with text
+                  color: iconColor, // Use the provided iconColor
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 2, // Allow for slightly longer titles
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      // Ensure text color contrasts well with cardBackgroundColor
+                      color: colorScheme
+                          .onSurfaceVariant, // For text on surfaceVariant
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

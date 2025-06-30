@@ -10,7 +10,6 @@ import 'package:home_bank/screens/investments_screen.dart';
 import 'package:home_bank/screens/login_screen.dart';
 import 'package:home_bank/screens/services_hub_screen.dart';
 import 'package:home_bank/screens/transaction_approval_screen.dart';
-import 'package:home_bank/screens/user_list_screen.dart';
 import 'package:home_bank/screens/user_screen.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
@@ -53,9 +52,6 @@ class MyApp extends StatelessWidget {
       routes: <RouteBase>[
         GoRoute(
             path: '/login', builder: (context, state) => const LoginScreen()),
-        GoRoute(
-            path: '/userList',
-            builder: (context, state) => const UserListScreen()),
         GoRoute(
           path: '/approve-transaction',
           name: 'approveTransaction', // Optional, but good for context.goNamed
@@ -126,7 +122,8 @@ class MyApp extends StatelessWidget {
             GoRoute(
               path: '/bank_admin',
               pageBuilder: (context, state) => const NoTransitionPage(
-                child: AdminScreen(),
+                child: AdminDashboardScreen(),
+                // child: UserListScreen(),
               ),
             ),
             GoRoute(

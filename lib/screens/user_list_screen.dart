@@ -1,8 +1,14 @@
 import 'package:bank_server/bank.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 
 import '../bank/bank_facade.dart';
+
+final Logger _logger = Logger(
+  printer: PrettyPrinter(methodCount: 0),
+);
 
 class UserListScreen extends StatefulWidget {
   const UserListScreen({super.key});
@@ -12,12 +18,13 @@ class UserListScreen extends StatefulWidget {
 }
 
 class _UserListScreenState extends State<UserListScreen> {
-  late BankFacade bank;
+  late BankFacade _bank;
+  int? _expandedIndex; // Track the currently expanded tile
 
   @override
   void initState() {
     super.initState();
-    bank = context.read();
+    _bank = context.read();
   }
 
   @override
@@ -26,8 +33,14 @@ class _UserListScreenState extends State<UserListScreen> {
       appBar: AppBar(
         title: const Text('User List'),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          context.go('/createUser');
+        },
+        child: const Icon(Icons.add),
+      ),
       body: StreamBuilder<List<User>>(
-        stream: bank.users(), // Replace with your actual user stream
+        stream: _bank.users(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -41,10 +54,65 @@ class _UserListScreenState extends State<UserListScreen> {
               itemCount: users.length,
               itemBuilder: (context, index) {
                 User user = users[index];
-                return ListTile(
-                  title: Text(
-                      user.username), // Display user name or other relevant data
-                  // Add more widgets to display other user details as needed
+                return ExpansionTile(
+                  title: Text(user.username),
+                  initiallyExpanded: index == _expandedIndex,
+                  // Control expansion
+                  onExpansionChanged: (isExpanded) {
+                    setState(() {
+                      if (isExpanded) {
+                        _expandedIndex = index;
+                      } else {
+                        _expandedIndex = null;
+                      }
+                    });
+                  },
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () {
+                            const message = 'Edit User not yet implemented';
+                            _logger.d(message);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text(message)),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: const Text('Confirm Delete'),
+                                  content: Text(
+                                      'Are you sure you want to delete ${user.username}?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context)
+                                            .pop(); // Close the dialog
+                                      },
+                                      child: const Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          _executeDelete(context, user),
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
                 );
               },
             );
@@ -52,5 +120,27 @@ class _UserListScreenState extends State<UserListScreen> {
         },
       ),
     );
+  }
+
+  void _executeDelete(BuildContext context, User user) {
+    _logger.d('Deleting User: ${user.username}');
+    _bank.deleteUser(user).then(
+      (success) {
+        // show message
+        if (success && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('${user.username} was deleted')));
+        }
+      },
+    ).catchError((e) {
+      var message = 'Exception caught: $e';
+      _logger.e(message);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    });
+    Navigator.of(context).pop(); // Close the dialog
   }
 }
