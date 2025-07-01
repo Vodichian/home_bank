@@ -17,7 +17,7 @@ class BankFacade extends ChangeNotifier {
 
   // BankFacade({this.address = 'localhost'});
 
-  initialize() async {
+  Future<void> initialize() async {
     await _client.connect(address: address);
   }
 

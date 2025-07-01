@@ -130,7 +130,7 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
         extra: pendingTransaction,
       );
 
-      if (context.mounted) {
+      if (mounted) {
         if (approvalResult != null && approvalResult is Map<String, dynamic>) {
           logger.i(
               'WithdrawFundsScreen: Received approval result: $approvalResult');

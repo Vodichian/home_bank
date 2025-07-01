@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:home_bank/screens/payment_screen.dart';
 import 'package:home_bank/screens/transfer_money_screen.dart';
 import 'package:home_bank/screens/withdraw_funds_screen.dart';
 import 'package:home_bank/utils/globals.dart';
@@ -60,13 +61,21 @@ class ServicesHubScreen extends StatelessWidget {
   }
 
   void _navigateToPayments(BuildContext context) {
-    logger.d("Navigate to Payments");
-    // TODO: Implement Payments screen/modal (likely involving merchant list)
-    // Example: context.push('/payments-screen');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Payments action (placeholder).')),
-    );
-  }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const PaymentScreen()), // Navigate to PaymentScreen
+    ).then((result) {
+      if (result == true && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment action completed successfully.')),
+        );
+        logger.d("Payment screen popped with success.");
+        // Optional: Trigger a refresh if needed, though StreamBuilder should handle balance
+      } else if (context.mounted) {
+        logger.d("Payment screen popped (no action, failed, or cancelled).");
+      }
+    });
+    logger.d("Navigating to Payment Screen");  }
 
   void _navigateToTransfer(BuildContext context) {
     Navigator.push(
