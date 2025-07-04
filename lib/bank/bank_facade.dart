@@ -143,12 +143,44 @@ class BankFacade extends ChangeNotifier {
     return _client.merchants(_currentUser!);
   }
 
-  Stream<List<BankTransaction>> transactions() {
+  /// Listens for real-time updates to transactions based on specified query parameters.
+  ///
+  /// This method uses the currently logged-in user (`_currentUser`) for authorization.
+  /// - If `_currentUser` is an admin, they can query all transactions subject to filters.
+  /// - If `_currentUser` is not an admin, the query is implicitly filtered by the
+  ///   `BankClient` and server to only include their personal transactions.
+  ///
+  /// Parameters:
+  ///   - [queryParameters]: An object containing filters, sorting options, and limit.
+  ///
+  /// Returns a stream of lists of [BankTransaction]s that match the query.
+  /// Returns an error stream if the user is not logged in or if an error occurs.
+  Stream<List<BankTransaction>> searchTransactions(
+      TransactionQueryParameters queryParameters) {
     if (_currentUser == null) {
-      throw AuthenticationError('User is not logged in');
+      logger.w(
+          'BankFacade.searchTransactions: Attempted to search transactions without a logged-in user.');
+      return Stream.error(AuthenticationError(
+          'User is not logged in. Cannot search transactions.'));
     }
-    return _client.transactions(_currentUser!);
+
+    // The BankClient's searchTransactions method will handle the core logic
+    // of applying filters and respecting admin/user roles based on the provided _currentUser.
+    try {
+      logger.i(
+          'BankFacade: Searching transactions for user ${_currentUser!.username} (Admin: ${_currentUser!.isAdmin}, UserID: ${_currentUser!.userId}) with params: ${queryParameters.toJson()}');
+      // Pass _currentUser as the authorizing user to the client method.
+      return _client.searchTransactions(_currentUser!, queryParameters);
+    } catch (e, s) {
+      logger.e(
+          'BankFacade: Error initiating transaction search for user ${_currentUser!.username}: $e',
+          error: e,
+          stackTrace: s);
+      // Propagate error as a stream error for the UI to handle.
+      return Stream.error(Exception('Failed to initiate transaction search: $e'));
+    }
   }
+
 
   /// Converts a [PendingTransaction] to a [BankTransaction].
   Future<BankTransaction> _convertPendingToBankTransaction(

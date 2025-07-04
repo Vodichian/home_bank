@@ -17,6 +17,7 @@ class PaymentScreen extends StatefulWidget {
 
 class _PaymentScreenState extends State<PaymentScreen> {
   final _amountController = TextEditingController();
+  final _noteController = TextEditingController(); // ADDED: Controller for the note
   final _formKey = GlobalKey<FormState>();
   final _uuid = const Uuid();
 
@@ -24,9 +25,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
   User? _currentUser;
   Merchant? _selectedMerchant;
   List<Merchant> _merchants = [];
-
-  // Use StreamBuilder for SavingsAccount to get real-time updates
-  // No need for a separate _savingsAccountFuture or _isLoading for it specifically
 
   bool _isFetchingInitialData = true;
   String? _initialError;
@@ -50,10 +48,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
         throw AuthenticationError('User not logged in. Please log in again.');
       }
 
-      // Fetch merchants once
       _merchants = await _bankFacade.getMerchants();
       if (_merchants.isNotEmpty) {
-        _selectedMerchant = _merchants.first; // Default selection
+        _selectedMerchant = _merchants.first;
       }
     } on AuthenticationError catch (e) {
       logger.e(
@@ -122,6 +119,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     try {
       final pendingId = _uuid.v4();
+      final String? note = _noteController.text
+          .trim()
+          .isNotEmpty
+          ? _noteController.text.trim()
+          : null; // ADDED: Get note, make it null if empty
+
       final pendingTransaction = PendingTransaction.payment(
         pendingId: pendingId,
         amount: amount,
@@ -131,11 +134,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
         sourceSavingsAccountNickname: currentSavingsAccount.nickname,
         merchantId: _selectedMerchant!.accountNumber,
         merchantName: _selectedMerchant!.name,
-        notes: 'User payment to ${_selectedMerchant!.name}.',
+        notes: note, // MODIFIED: Pass the note here
       );
 
-      logger.i('PaymentScreen: Created PendingTransaction: ${pendingTransaction
-          .toJsonString()}');
+      logger.i(
+          'PaymentScreen: Created PendingTransaction: ${pendingTransaction
+              .toJsonString()}');
       logger.d(
           'PaymentScreen: Navigating to TransactionApprovalScreen with pendingId: ${pendingTransaction
               .id}');
@@ -148,17 +152,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
       if (mounted) {
         if (approvalResult != null && approvalResult is Map<String, dynamic>) {
           logger.i('PaymentScreen: Received approval result: $approvalResult');
-          final bool isApproved = approvalResult['isApproved'] as bool? ??
-              false;
+          final bool isApproved =
+              approvalResult['isApproved'] as bool? ?? false;
           final approvedByUser = approvalResult['adminUser'] as User?;
-          final returnedPendingTx = approvalResult['pendingTransaction'] as PendingTransaction?;
+          final returnedPendingTx =
+          approvalResult['pendingTransaction'] as PendingTransaction?;
 
-          if (isApproved && approvedByUser != null &&
+          if (isApproved &&
+              approvedByUser != null &&
               returnedPendingTx != null) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Payment to ${returnedPendingTx
-                  .merchantName} approved by ${approvedByUser
-                  .username}. Processing...')),
+              SnackBar(
+                  content: Text(
+                      'Payment to ${returnedPendingTx
+                          .merchantName} approved by ${approvedByUser
+                          .username}. Processing...')),
             );
             await _bankFacade.processTransaction(
                 returnedPendingTx, approvedByUser);
@@ -167,8 +175,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
               Navigator.pop(context, true); // Pop with true for success
             }
           } else if (!isApproved) {
-            final reason = approvalResult['reason'] as String? ??
-                'No reason provided.';
+            final reason =
+                approvalResult['reason'] as String? ?? 'No reason provided.';
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
@@ -218,6 +226,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   @override
   void dispose() {
     _amountController.dispose();
+    _noteController.dispose(); // ADDED: Dispose the note controller
     super.dispose();
   }
 
@@ -233,8 +242,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Widget _buildBody() {
     if (_isFetchingInitialData) {
-      return const Center(child: CircularProgressIndicator(
-          key: ValueKey("payment_initial_loading")));
+      return const Center(
+          child: CircularProgressIndicator(
+              key: ValueKey("payment_initial_loading")));
     }
 
     if (_initialError != null) {
@@ -246,7 +256,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
             children: [
               const Icon(Icons.error_outline, color: Colors.red, size: 48),
               const SizedBox(height: 16),
-              Text(_initialError!, textAlign: TextAlign.center,
+              Text(_initialError!,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 16)),
               const SizedBox(height: 16),
               ElevatedButton(
@@ -264,18 +275,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
       );
     }
 
-    // Use StreamBuilder for SavingsAccount to listen for real-time balance updates
     return StreamBuilder<SavingsAccount>(
       stream: _bankFacade.listenSavingsAccount(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting &&
             !_isSubmitting) {
-          // Show loading only if not submitting, to avoid flicker during submission
-          // and assuming initial fetch of merchants is done.
           if (_currentUser == null ||
               _merchants.isEmpty && !_isFetchingInitialData) {
-            return const Center(child: CircularProgressIndicator(
-                key: ValueKey("payment_savings_waiting")));
+            return const Center(
+                child: CircularProgressIndicator(
+                    key: ValueKey("payment_savings_waiting")));
           }
         }
 
@@ -293,13 +302,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
         }
 
         if (!snapshot.hasData && _currentUser != null) {
-          // If current user is loaded but no savings data yet, still show loading.
-          // This might happen briefly when the stream is initializing.
-          return const Center(child: CircularProgressIndicator(
-              key: ValueKey("payment_savings_nodata")));
+          return const Center(
+              child: CircularProgressIndicator(
+                  key: ValueKey("payment_savings_nodata")));
         }
 
-        // Ensure _currentUser is available. _fetchInitialData should handle this.
         if (_currentUser == null) {
           return Center(
               child: Padding(
@@ -310,18 +317,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         const Text(
                             'User data not available. Please try logging in again.'),
                         const SizedBox(height: 16),
-                        ElevatedButton(onPressed: () => context.go('/login'),
+                        ElevatedButton(
+                            onPressed: () => context.go('/login'),
                             child: const Text('Go to Login'))
-                      ]
-                  )
-              )
-          );
+                      ])));
         }
 
-        // snapshot.data can be null if the stream hasn't emitted yet, or if there's an issue
-        // not caught by snapshot.hasError (though less likely with gRPC streams if set up correctly).
-        // If snapshot.data is null but we expect it, it's safer to show loading or an error.
-        final savingsAccount = snapshot.data; // Can be null initially
+        final savingsAccount = snapshot.data;
 
         return Padding(
           padding: const EdgeInsets.all(16.0),
@@ -362,7 +364,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   ...[
                     const Text('Loading account details...',
                         style: TextStyle(fontStyle: FontStyle.italic)),
-                    // Or a Shimmer effect for better UX
                   ],
                 const SizedBox(height: 24),
                 TextFormField(
@@ -372,8 +373,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     prefixText: '\$',
                     border: OutlineInputBorder(),
                   ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true),
+                  keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter an amount.';
@@ -414,14 +415,26 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 else
                   const Text('No merchants available to pay or still loading.',
                       style: TextStyle(fontStyle: FontStyle.italic)),
+                const SizedBox(height: 16), // ADDED: Spacing
+                TextFormField(
+                  // ADDED: Note field
+                  controller: _noteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Note (Optional)',
+                    border: OutlineInputBorder(),
+                    hintText: 'Enter a brief note for the payment',
+                  ),
+                  textCapitalization: TextCapitalization.sentences,
+                  maxLength: 100, // Optional: Limit note length
+                ),
                 const SizedBox(height: 24),
                 if (_isSubmitting)
-                  const Center(child: CircularProgressIndicator(
-                      key: ValueKey("payment_submitting")))
+                  const Center(
+                      child: CircularProgressIndicator(
+                          key: ValueKey("payment_submitting")))
                 else
                   ElevatedButton(
-                    onPressed: savingsAccount ==
-                        null // Disable button if savings account not loaded
+                    onPressed: savingsAccount == null
                         ? null
                         : () => _submitPayment(savingsAccount),
                     style: ElevatedButton.styleFrom(
