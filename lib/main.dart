@@ -11,6 +11,7 @@ import 'package:home_bank/screens/login_screen.dart';
 import 'package:home_bank/screens/merchant_management_screen.dart';
 import 'package:home_bank/screens/services_hub_screen.dart';
 import 'package:home_bank/screens/transaction_approval_screen.dart';
+import 'package:home_bank/screens/transaction_browser_screen.dart';
 import 'package:home_bank/screens/user_management_screen.dart';
 import 'package:home_bank/screens/user_screen.dart';
 import 'package:home_bank/utils/globals.dart';
@@ -96,7 +97,7 @@ class MyApp extends StatelessWidget {
           },
         ),
 
-        // NEW Route for Merchant Management
+        // Route for Merchant Management
         GoRoute(
           path: '/admin/merchant-management',
           name: 'merchantManagement',
@@ -114,6 +115,22 @@ class MyApp extends StatelessWidget {
             }
             logger.d("MerchantManagement: Access granted for admin ${bankFacade.currentUser?.username}");
             return null; // Allow access if logged in and is admin
+          },
+        ),
+
+        // Route for Merchant Management
+        GoRoute(
+          path: '/admin/transaction-browser',
+          name: 'transactionBrowser',
+          builder: (context, state) => const TransactionBrowserScreen(),
+          redirect: (BuildContext context, GoRouterState state) async {
+            final bankFacade = Provider.of<BankFacade>(context, listen: false);
+            if (bankFacade.currentUser == null) {
+              logger.d("TransactionBrowser: User not logged in, redirecting to /login");
+              return '/login'; // Redirect to login if not logged in
+            }
+            logger.d("TransactionBrowser: Access granted for ${bankFacade.currentUser?.username}");
+            return null; // Allow access if logged in
           },
         ),
 

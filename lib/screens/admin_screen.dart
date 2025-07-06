@@ -114,11 +114,13 @@ class AdminDashboardScreen extends StatelessWidget {
                   route: '/admin/merchant-management',
                   onTapAction: (route) => context.push(route),
                 ),
-                const ManagementCard(
-                  title: 'Transaction Logs',
+                ManagementCard(
+                  title: 'Transaction Browser',
                   icon: Icons.receipt_long_outlined,
+                  // Or Icons.manage_search, Icons.history
                   iconColor: Colors.redAccent,
-                  route: '',
+                  route: '/admin/transaction-browser',
+                  onTapAction: (route) => context.push(route),
                 ),
                 const ManagementCard(
                   title: 'Investment Oversight',
@@ -190,7 +192,8 @@ class ManagementCard extends StatelessWidget {
         onTap: () {
           if (onTapAction != null) {
             onTapAction!(route); // Use the provided action
-          } else { // Fallback to original behavior if no action is provided
+          } else {
+            // Fallback to original behavior if no action is provided
             if (route.isNotEmpty) {
               // Default to push for better back navigation from detail screens
               context.push(route); // <--- ENSURE THIS USES PUSH
@@ -206,7 +209,8 @@ class ManagementCard extends StatelessWidget {
               );
             }
           }
-        },        borderRadius: BorderRadius.circular(16),
+        },
+        borderRadius: BorderRadius.circular(16),
         splashColor: iconColor.withValues(alpha: 0.1),
         highlightColor: iconColor.withValues(alpha: 0.05),
         child: Padding(
