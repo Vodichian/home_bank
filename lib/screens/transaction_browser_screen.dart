@@ -35,8 +35,8 @@ ClientTransactionType? clientTransactionTypeFromString(String? typeString) {
     // Handle cases where the string from the server doesn't match any client enum
     // This might happen if the server introduces a new type the client doesn't know about.
     // You could log this or return a default/unknown type.
-    logger.e(
-        'Warning: Unknown transaction type string from server: $typeString');
+    logger
+        .e('Warning: Unknown transaction type string from server: $typeString');
     return null;
   }
 }
@@ -53,7 +53,8 @@ class TransactionBrowserScreen extends StatefulWidget {
 class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
   late BankFacade _bankFacade;
   Stream<List<BankTransaction>>? _transactionsStream;
-  TransactionQueryParameters _currentQuery = TransactionQueryParameters(); // Initial empty query
+  TransactionQueryParameters _currentQuery =
+      TransactionQueryParameters(); // Initial empty query
 
   // --- Filter State Variables ---
   final TextEditingController _searchController = TextEditingController();
@@ -67,7 +68,8 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
     'Payment': ClientTransactionType.payment,
     'Transfer': ClientTransactionType.transfer,
   };
-  late String _selectedTransactionTypeDisplay; // Holds the selected display string, e.g., "Add Funds"
+  late String
+      _selectedTransactionTypeDisplay; // Holds the selected display string, e.g., "Add Funds"
 
   // For TransactionSortField Dropdown
   final Map<String, TransactionSortField?> _sortFieldOptions = {
@@ -120,16 +122,15 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
 
   void _applyFiltersAndFetch() {
     final ClientTransactionType? selectedClientType =
-    _clientTransactionTypeOptions[_selectedTransactionTypeDisplay];
+        _clientTransactionTypeOptions[_selectedTransactionTypeDisplay];
     final TransactionSortField? selectedSortField =
-    _sortFieldOptions[_selectedSortFieldDisplay];
+        _sortFieldOptions[_selectedSortFieldDisplay];
     final SortDirection? selectedSortDirection =
-    _sortDirectionOptions[_selectedSortDirectionDisplay];
+        _sortDirectionOptions[_selectedSortDirectionDisplay];
 
     _currentQuery = TransactionQueryParameters(
-      searchString: _searchController.text.isNotEmpty
-          ? _searchController.text
-          : null,
+      searchString:
+          _searchController.text.isNotEmpty ? _searchController.text : null,
       transactionType: clientTransactionTypeToString(selectedClientType),
       sortBy: selectedSortField,
       sortDirection: selectedSortDirection,
@@ -141,8 +142,7 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
   void _fetchTransactions() {
     if (!mounted) return;
     logger.i(
-        "TransactionBrowser: Fetching transactions with query: ${_currentQuery
-            .toJson()}");
+        "TransactionBrowser: Fetching transactions with query: ${_currentQuery.toJson()}");
     setState(() {
       _transactionsStream = _bankFacade.searchTransactions(_currentQuery);
     });
@@ -167,19 +167,20 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
       expandedHeaderPadding: EdgeInsets.zero,
       expansionCallback: (int index, bool isExpanded) {
         setState(() {
-          _isFilterPanelExpanded = !isExpanded;
+          _isFilterPanelExpanded = !_isFilterPanelExpanded;
         });
       },
       children: [
         ExpansionPanel(
-          backgroundColor: theme.colorScheme.surfaceContainerHighest..withValues(alpha: 0.3),
+          backgroundColor:
+              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
           headerBuilder: (BuildContext context, bool isExpanded) {
             return ListTile(
               title: Text('Filters & Sorting',
                   style: theme.textTheme.titleMedium
                       ?.copyWith(fontWeight: FontWeight.w600)),
-              leading: Icon(
-                  Icons.filter_list_alt, color: theme.colorScheme.primary),
+              leading:
+                  Icon(Icons.filter_list_alt, color: theme.colorScheme.primary),
             );
           },
           body: Padding(
@@ -198,12 +199,12 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
                     fillColor: theme.canvasColor,
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        // _applyFiltersAndFetch will be called by listener
-                      },
-                    )
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              // _applyFiltersAndFetch will be called by listener
+                            },
+                          )
                         : null,
                   ),
                   onEditingComplete: _applyFiltersAndFetch,
@@ -271,8 +272,9 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
                           border: const OutlineInputBorder(),
                           filled: true,
                           fillColor: theme.canvasColor,
-                          prefixIcon: _sortDirectionOptions[_selectedSortDirectionDisplay] ==
-                              SortDirection.ascending
+                          prefixIcon: _sortDirectionOptions[
+                                      _selectedSortDirectionDisplay] ==
+                                  SortDirection.ascending
                               ? const Icon(Icons.arrow_upward)
                               : const Icon(Icons.arrow_downward),
                         ),
@@ -344,17 +346,19 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
 
                 if (snapshot.hasError) {
                   logger.e(
-                      "TransactionBrowserScreen: Error in stream: ${snapshot
-                          .error}", stackTrace: snapshot.stackTrace);
+                      "TransactionBrowserScreen: Error in stream: ${snapshot.error}",
+                      stackTrace: snapshot.stackTrace);
                   String errorMessage = 'Error loading transactions.';
                   if (snapshot.error is AuthenticationError) {
                     errorMessage =
                         (snapshot.error as AuthenticationError).message;
-                  } else if (snapshot.error.toString().contains(
-                      "Failed to initiate")) {
+                  } else if (snapshot.error
+                      .toString()
+                      .contains("Failed to initiate")) {
                     errorMessage = 'Could not connect to the server.';
-                  } else
-                  if (snapshot.error.toString().contains("Stream broke") ||
+                  } else if (snapshot.error
+                          .toString()
+                          .contains("Stream broke") ||
                       snapshot.error.toString().contains("Connection lost")) {
                     errorMessage = 'Connection lost. Please try again.';
                   }
@@ -367,13 +371,15 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
                           Icon(Icons.error_outline,
                               color: theme.colorScheme.error, size: 48),
                           const SizedBox(height: 10),
-                          Text(errorMessage, textAlign: TextAlign.center,
+                          Text(errorMessage,
+                              textAlign: TextAlign.center,
                               style: theme.textTheme.titleMedium),
                           const SizedBox(height: 20),
                           ElevatedButton.icon(
                             icon: const Icon(Icons.refresh),
                             label: const Text('Try Again'),
-                            onPressed: _applyFiltersAndFetch, // Retry the fetch with current filters
+                            onPressed:
+                                _applyFiltersAndFetch, // Retry the fetch with current filters
                           )
                         ],
                       ),
@@ -388,31 +394,31 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.receipt_long_outlined, size: 60,
-                              color: Colors.grey[400]),
+                          Icon(Icons.receipt_long_outlined,
+                              size: 60, color: Colors.grey[400]),
                           const SizedBox(height: 16),
                           Text(
                             'No transactions found.',
                             textAlign: TextAlign.center,
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                                color: Colors.grey[600]),
+                            style: theme.textTheme.headlineSmall
+                                ?.copyWith(color: Colors.grey[600]),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             _searchController.text.isNotEmpty ||
-                                _selectedTransactionTypeDisplay !=
-                                    'All Types' ||
-                                _selectedSortFieldDisplay !=
-                                    _sortFieldOptions.keys
-                                        .first || // Check if default sort changed
-                                _selectedSortDirectionDisplay !=
-                                    _sortDirectionOptions.keys
-                                        .first // Check if default direction changed
+                                    _selectedTransactionTypeDisplay !=
+                                        'All Types' ||
+                                    _selectedSortFieldDisplay !=
+                                        _sortFieldOptions.keys
+                                            .first || // Check if default sort changed
+                                    _selectedSortDirectionDisplay !=
+                                        _sortDirectionOptions.keys
+                                            .first // Check if default direction changed
                                 ? 'Try adjusting your filters or search terms.'
                                 : 'Your transaction history will appear here.',
                             textAlign: TextAlign.center,
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                                color: Colors.grey[500]),
+                            style: theme.textTheme.bodyLarge
+                                ?.copyWith(color: Colors.grey[500]),
                           ),
                           if (_searchController.text.isNotEmpty ||
                               _selectedTransactionTypeDisplay != 'All Types')
@@ -443,7 +449,7 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
                       return _buildTransactionTile(tx, theme);
                     },
                     separatorBuilder: (context, index) =>
-                    const SizedBox(height: 4),
+                        const SizedBox(height: 4),
                   ),
                 );
               },
@@ -456,8 +462,8 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
 
   Widget _buildTransactionTile(BankTransaction tx, ThemeData theme) {
     final DateFormat dateFormat = DateFormat('MMM d, yyyy HH:mm');
-    final User? currentUser = _bankFacade
-        .currentUser; // Get current user for context
+    final User? currentUser =
+        _bankFacade.currentUser; // Get current user for context
 
     bool isCurrentUserSource = false;
     bool isCurrentUserTarget = false;
@@ -515,13 +521,11 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
           // Admin viewing a transfer between other users
           transactionTitle = 'Transfer';
           subtitleDetails =
-          'From: ${tx.sourceUser.username} To: ${tx.targetUser?.username ??
-              'Unknown User'}';
+              'From: ${tx.sourceUser.username} To: ${tx.targetUser?.username ?? 'Unknown User'}';
         }
         break;
       default: // Should not happen if server transaction types are mapped
-        transactionTitle =
-        'Transaction: ${tx.transactionType}';
+        transactionTitle = 'Transaction: ${tx.transactionType}';
         subtitleDetails = 'From: ${tx.sourceUser.username}';
         if (tx.targetUser != null) {
           subtitleDetails += ' To: ${tx.targetUser!.username}';
@@ -555,7 +559,6 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
         tileIcon = Icons.receipt_long_outlined;
     }
 
-
     return Card(
       elevation: 1.5,
       margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 0),
@@ -568,8 +571,8 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
         ),
         title: Text(
           transactionTitle,
-          style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w500),
+          style: theme.textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.w500),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),

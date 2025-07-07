@@ -177,10 +177,10 @@ class BankFacade extends ChangeNotifier {
           error: e,
           stackTrace: s);
       // Propagate error as a stream error for the UI to handle.
-      return Stream.error(Exception('Failed to initiate transaction search: $e'));
+      return Stream.error(
+          Exception('Failed to initiate transaction search: $e'));
     }
   }
-
 
   /// Converts a [PendingTransaction] to a [BankTransaction].
   Future<BankTransaction> _convertPendingToBankTransaction(
@@ -212,8 +212,8 @@ class BankFacade extends ChangeNotifier {
         return BankTransaction.addFunds(
           sourceUser: initiatingUser, // User whose account is being funded
           amount: pendingTx.amount,
-          authUser:
-              adminUser, // Admin authorizing/performing the direct fund addition
+          authUser: adminUser, // Admin authorizing/performing the fund addition
+          note: pendingTx.notes,
         );
 
       case pt.PendingTransactionType.withdrawal:
@@ -223,6 +223,7 @@ class BankFacade extends ChangeNotifier {
           // User from whose account funds are withdrawn
           amount: pendingTx.amount,
           authUser: adminUser, // Admin authorizing the withdrawal
+          note: pendingTx.notes,
         );
 
       case pt.PendingTransactionType.transfer:
@@ -247,6 +248,7 @@ class BankFacade extends ChangeNotifier {
           sourceUser: initiatingUser, // User sending the funds
           amount: pendingTx.amount,
           targetUser: targetUser, // User receiving the funds
+          note: pendingTx.notes,
         );
 
       case pt.PendingTransactionType.payment:
@@ -271,6 +273,7 @@ class BankFacade extends ChangeNotifier {
           sourceUser: initiatingUser, // User making the payment
           amount: pendingTx.amount,
           merchant: targetMerchant, // Merchant receiving the payment
+          note: pendingTx.notes,
         );
     }
   }
