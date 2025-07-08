@@ -134,7 +134,7 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
       transactionType: clientTransactionTypeToString(selectedClientType),
       sortBy: selectedSortField,
       sortDirection: selectedSortDirection,
-      limit: 50, // Default limit, can be made configurable
+      limit: 100, // Default limit, can be made configurable
     );
     _fetchTransactions();
   }
@@ -484,13 +484,13 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
         transactionTitle = 'Funds Added';
         amountColor = Colors.green.shade700;
         amountPrefix = '+ ';
-        subtitleDetails = 'To: Your Account (Self)';
+        subtitleDetails = 'To: ${tx.sourceUser.username}';
         break;
       case ClientTransactionType.withdrawal:
         transactionTitle = 'Withdrawal';
         amountColor = Colors.red.shade700;
         amountPrefix = '- ';
-        subtitleDetails = 'From: Your Account (Self)';
+        subtitleDetails = 'From: ${tx.sourceUser.username}';
         break;
       case ClientTransactionType.payment:
         transactionTitle = 'Payment to ${tx.merchant?.name ?? 'Merchant'}';
