@@ -1,64 +1,68 @@
+// lib/screens/initializing_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
-
-import '../bank/bank_facade.dart';
+import 'package:go_router/go_router.dart'; // Import GoRouter
 
 class InitializingScreen extends StatefulWidget {
-  const InitializingScreen({super.key});
+  final String? message;
+
+  const InitializingScreen({super.key, this.message});
 
   @override
   State<StatefulWidget> createState() => _InitializingScreenState();
 }
 
 class _InitializingScreenState extends State<InitializingScreen> {
-  late BankFacade bank;
-
   @override
   void initState() {
     super.initState();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
-    bank = context.read();
+    // Hide system UI for a cleaner splash screen, but this might be too aggressive
+    // Consider if you really want to hide status bar and navigation gestures here.
+    // SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
   }
 
   @override
   void dispose() {
-    // Restore bottom navigation bar
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
-        overlays: SystemUiOverlay.values);
+    // Restore system UI if it was hidden
+    // SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: bank.initialize(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.done) {
-          if (snapshot.hasError) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              context.go('/connect_error');
-            });
-          } else {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              context.go('/login');
-            });
-          }
-        }
-        return const Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Initializing database...'),
-              ],
-            ),
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 24),
+              Text(
+                widget.message ?? 'Initializing...',
+                textAlign: TextAlign.center,
+                style: Theme
+                    .of(context)
+                    .textTheme
+                    .titleMedium,
+              ),
+              const SizedBox(height: 32), // Add some space
+              ElevatedButton.icon(
+                icon: const Icon(Icons.dns_outlined), // Server icon
+                label: const Text('Switch Server'),
+                onPressed: () {
+                  // Navigate to the server selection screen
+                  context.go('/select-server');
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 12),
+                ),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

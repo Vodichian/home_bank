@@ -1,25 +1,104 @@
 import 'package:bank_server/bank.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/pending_transaction.dart' as pt;
 import '../utils/globals.dart';
+import '../config/server_definitions.dart';
 
 class BankFacade extends ChangeNotifier {
-  /// Server's address, i.e 'localhost' or '192.168.1.1'
-  final String address; // Added variable 'test'
   final BankClient _client = BankClient();
 
   User? _currentUser;
+  ServerConfig _currentServerConfig;
+  static const String _lastServerTypeKey = 'last_server_type';
 
-  BankFacade({this.address = '192.168.1.40'});
+  // Private constructor for internal use with factory
+  BankFacade._(this._currentServerConfig);
+
+  // Factory constructor to initialize asynchronously
+  static Future<BankFacade> create() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastServerTypeName = prefs.getString(_lastServerTypeKey);
+    ServerType initialServerType = ServerType.test; // Default to test
+
+    if (lastServerTypeName == ServerType.live.name) {
+      initialServerType = ServerType.live;
+    }
+    // No need to explicitly check for test, as it's the default
+
+    final initialConfig = initialServerType == ServerType.live
+        ? liveServerConfig
+        : testServerConfig;
+    return BankFacade._(initialConfig);
+  }
 
   User? get currentUser => _currentUser;
 
-  // BankFacade({this.address = 'localhost'});
+  ServerConfig get currentServerConfig => _currentServerConfig;
+
+  bool get isConnected => _client.isConnected;
 
   Future<void> initialize() async {
-    await _client.connect(address: address);
+    if (isConnected) {
+      await _client
+          .disconnect(); // Disconnect if already connected (e.g., after a switch)
+    }
+    _currentUser = null; // Clear user on new connection/re-initialization
+    logger.i(
+        "Attempting to connect to: ${_currentServerConfig.name} (${_currentServerConfig.address})");
+    try {
+      await _client.connect(address: _currentServerConfig.address);
+      logger.i("Successfully connected to: ${_currentServerConfig.name}");
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_lastServerTypeKey, _currentServerConfig.type.name);
+    } catch (e) {
+      logger.e("Failed to connect to ${_currentServerConfig.name}: $e");
+      rethrow; // Propagate error for UI to handle
+    }
+    notifyListeners(); // Notify about connection state change (and currentUser reset)
   }
+
+  Future<void> switchServer(ServerType serverType) async {
+    if (_currentServerConfig.type == serverType) {
+      logger.i("Already on ${serverType.name}. No switch needed.");
+      if (!isConnected) { // If on the correct server but not connected, try to connect
+        await initialize();
+      }
+      return;
+    }
+
+    logger.i("Switching to ${serverType.name} server...");
+    if (isConnected) {
+      await disconnect(); // Gracefully disconnect from the current server
+    }
+
+    _currentServerConfig = (serverType == ServerType.live) ? liveServerConfig : testServerConfig;
+    _currentUser = null; // Clear user session when switching servers
+    notifyListeners(); // Notify about config change immediately
+
+    await initialize(); // Attempt to connect to the new server
+  }
+
+  // --- Login needs to be aware of connection state ---
+  Future<void> login(String username, String password) async {
+    if (!isConnected) {
+      // Attempt to initialize/connect if not connected.
+      // This could happen if the app starts, tries to connect to last server, fails,
+      // and user then tries to log in.
+      logger.w("Login attempt while disconnected. Trying to connect first...");
+      try {
+        await initialize(); // This will use _currentServerConfig
+      } catch (e) {
+        logger.e("Connection failed during login attempt: $e");
+        throw AuthenticationError('Connection failed. Please check server status or switch servers.');
+      }
+    }
+    // Proceed with login if connection is now established
+    _currentUser = await _client.login(username, password);
+    notifyListeners();
+  }
+
 
   Future<List<User>> getUsers() {
     if (_currentUser == null) {
@@ -64,13 +143,6 @@ class BankFacade extends ChangeNotifier {
       return 'Username $username is already taken';
     }
     return '';
-  }
-
-  /// Logins into to the system.
-  ///
-  /// Throws [AuthenticationError] on failure
-  Future<void> login(String username, String password) async {
-    _currentUser = await _client.login(username, password);
   }
 
   /// Authenticates credentials as an admin, returning the user if successful.
