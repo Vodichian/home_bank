@@ -23,7 +23,7 @@ packages:
       path: "../bank_server"
       relative: true
     source: path
-    version: "0.14.0"
+    version: "0.14.1"
   bcrypt:
     dependency: transitive
     description:

@@ -104,24 +104,6 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
-                controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Password'),
-                obscureText: true, // Good for passwords
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a password';
-                  }
-                  if (value.length < 6) { // Example: minimum password length
-                    return 'Password must be at least 6 characters';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              // Added spacing
-              // FutureBuilder for username validation (as in your original code)
-              // Ensure BankFacade is available here
               Consumer<
                   BankFacade>( // Or context.read<BankFacade>() directly if appropriate
                   builder: (context, bank, child) {
@@ -221,6 +203,22 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 },
               ),
 
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _passwordController,
+                decoration: const InputDecoration(labelText: 'Password'),
+                obscureText: true, // Good for passwords
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a password';
+                  }
+                  if (value.length < 6) { // Example: minimum password length
+                    return 'Password must be at least 6 characters';
+                  }
+                  return null;
+                },
+              ),
 
               const SizedBox(height: 20),
               ElevatedButton(
