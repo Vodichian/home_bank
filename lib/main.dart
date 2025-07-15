@@ -142,7 +142,7 @@ class _MyAppState extends State<MyApp> {
                   // if the state (e.g. isConnected=false) doesn't "change" from its perspective.
                   if (context.mounted) {
                     context.go('/connect_error',
-                      extra: {'error': e, 'serverName': currentConfig.name});
+                        extra: {'error': e, 'serverName': currentConfig.name});
                   }
                 }
               },
@@ -270,8 +270,8 @@ class _MyAppState extends State<MyApp> {
         final bool onConnectionErrorScreen =
             currentLocation == '/connect_error';
         final bool onLoginScreen = currentLocation == '/login';
-        final bool onSelectServerScreen =
-            currentLocation == '/select-server'; // Added this check
+        final bool onSelectServerScreen = currentLocation == '/select-server';
+        final bool onCreateUserScreen = currentLocation == '/createUser';
 
         // 1. If trying to switch server, let it proceed to the /select-server screen.
         //    Or, if already on /select-server, don't redirect away from it prematurely.
@@ -288,14 +288,14 @@ class _MyAppState extends State<MyApp> {
         // If we are on the loading splash, and the bank is NOT yet connected, let it stay.
         // This handles the initial startup where bank.initialize() is running.
         if (onAppLoadingSplash && !isConnected) {
-          logger.d("Redirect: On app_loading_splash, initial connection attempt pending, no redirect.");
+          logger.d(
+              "Redirect: On app_loading_splash, initial connection attempt pending, no redirect.");
           return null;
         }
         // if (onAppLoadingSplash && !isConnected && !bank.hasAttemptedFirstConnection) {
         //   logger.d("Redirect: On app_loading_splash, initial connection attempt pending, no redirect.");
         //   return null;
         // }
-
 
         // 1. Handle not connected:
         //    If not connected, and not already on a screen that handles connection errors
@@ -317,16 +317,20 @@ class _MyAppState extends State<MyApp> {
                 "Redirect: Connected, was on app_loading_splash. Redirecting to ${isLoggedIn ? '/home' : '/login'}.");
             return isLoggedIn ? '/home' : '/login';
           }
-          // If connected but not logged in, and not on login or another public screen, go to login.
-          if (!isLoggedIn && !onLoginScreen /* && !onOtherPublicScreens... */) {
+
+          // If connected but not logged in, and NOT on login OR createUser, go to login.
+          if (!isLoggedIn && !onLoginScreen && !onCreateUserScreen) {
+            // MODIFIED HERE
             logger.i(
-                "Redirect: Connected, not logged in, not on login. Redirecting to /login from $currentLocation.");
+                "Redirect: Connected, not logged in, not on login or createUser. Redirecting to /login from $currentLocation.");
             return '/login';
           }
-          // If logged in but somehow on the login screen, redirect to home.
-          if (isLoggedIn && onLoginScreen) {
+
+          // If logged in but somehow on the login OR createUser screen, redirect to home.
+          if (isLoggedIn && (onLoginScreen || onCreateUserScreen)) {
+            // MODIFIED HERE
             logger.i(
-                "Redirect: Logged in, but on login screen. Redirecting to /home.");
+                "Redirect: Logged in, but on login or createUser screen. Redirecting to /home.");
             return '/home';
           }
         }
