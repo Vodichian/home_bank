@@ -101,11 +101,12 @@ class AdminDashboardScreen extends StatelessWidget {
                   route: '/admin/user-management',
                   onTapAction: (route) => context.push(route),
                 ),
-                const ManagementCard(
+                ManagementCard(
                   title: 'Server Management',
                   icon: Icons.dns_outlined,
                   iconColor: Colors.tealAccent,
-                  route: '',
+                  route: '/admin/server-management',
+                  onTapAction: (route) => context.push(route),
                 ),
                 ManagementCard(
                   title: 'Merchant Management',

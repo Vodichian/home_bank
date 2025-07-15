@@ -99,6 +99,13 @@ class BankFacade extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Logs out the current user by clearing their session locally.
+  /// Does not disconnect from the server.
+  Future<void> logout() async {
+    logger.i("BankFacade: Logging out user ${_currentUser?.username ?? 'N/A'}. Connection will remain active.");
+    _currentUser = null;
+    notifyListeners(); // Crucial for GoRouter and UI updates
+  }
 
   Future<List<User>> getUsers() {
     if (_currentUser == null) {
@@ -164,8 +171,17 @@ class BankFacade extends ChangeNotifier {
     return _client.users(_currentUser!);
   }
 
+  /// Disconnects from the server and clears the current user session.
   Future<void> disconnect() async {
-    await _client.disconnect();
+    if (isConnected) {
+      logger.i("BankFacade: Disconnecting from server ${_currentServerConfig.name}...");
+      await _client.disconnect();
+      logger.i("BankFacade: Successfully disconnected from server.");
+    } else {
+      logger.i("BankFacade: disconnect() called, but already disconnected.");
+    }
+    _currentUser = null; // Also clear user on full disconnect
+    notifyListeners(); // Notify about connection and auth state change
   }
 
   /// Retrieves the [SavingsAccount] of the currently logged in user.

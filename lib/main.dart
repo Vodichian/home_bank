@@ -12,6 +12,7 @@ import 'package:home_bank/screens/initializing_screen.dart';
 import 'package:home_bank/screens/investments_screen.dart';
 import 'package:home_bank/screens/login_screen.dart';
 import 'package:home_bank/screens/merchant_management_screen.dart';
+import 'package:home_bank/screens/server_management_screen.dart';
 import 'package:home_bank/screens/server_selection_screen.dart';
 import 'package:home_bank/screens/services_hub_screen.dart';
 import 'package:home_bank/screens/transaction_approval_screen.dart';
@@ -193,6 +194,12 @@ class _MyAppState extends State<MyApp> {
           path: '/admin/transaction-browser',
           name: 'transactionBrowser',
           builder: (context, state) => const TransactionBrowserScreen(),
+          redirect: _userAuthRedirect, // Any logged-in user can see this
+        ),
+        GoRoute(
+          path: '/admin/server-management',
+          name: 'serverManagement',
+          builder: (context, state) => const ServerManagementScreen(),
           redirect: _userAuthRedirect, // Any logged-in user can see this
         ),
         ShellRoute(
