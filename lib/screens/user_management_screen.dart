@@ -153,11 +153,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           isAdmin: isAdmin,
                           // Password is not updated here for existing users for simplicity
                         );
-                        // TODO: Implement BankFacade.updateUser method
-                        // await _bankFacade.updateUser(updatedUser,adminUser);
+                        await _bankFacade.updateUser(updatedUser);
                         logger.i(
                             "User ${updatedUser.username} updated successfully by ${adminUser.username}.");
-                        if (mounted) {
+                        if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                                 content: Text(
