@@ -18,7 +18,7 @@ import 'package:home_bank/screens/services_hub_screen.dart';
 import 'package:home_bank/screens/transaction_approval_screen.dart';
 import 'package:home_bank/screens/transaction_browser_screen.dart';
 import 'package:home_bank/screens/user_management_screen.dart';
-import 'package:home_bank/screens/user_screen.dart';
+import 'package:home_bank/screens/profile_screen.dart';
 import 'package:home_bank/utils/globals.dart'; // For logger
 import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
@@ -243,7 +243,7 @@ class _MyAppState extends State<MyApp> {
             GoRoute(
               path: '/profile',
               pageBuilder: (context, state) =>
-                  const NoTransitionPage(child: UserScreen()),
+                  const NoTransitionPage(child: ProfileScreen()),
             ),
             GoRoute(
               path: '/bank_admin',
