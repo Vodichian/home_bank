@@ -77,6 +77,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
+          // You might want to re-fetch user data if it can change
+          // For now, setState will just rebuild with existing _currentUser
           setState(() {});
           logger.d("ProfileScreen refreshed.");
         },
@@ -146,18 +148,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
         CircleAvatar(
           radius: 50,
           backgroundColor: theme.colorScheme.primaryContainer,
+          // TODO: Consider using _currentUser.imagePath if available
           child: Icon(
-            Icons.person,
+            Icons.person, // Placeholder, replace with image if available
             size: 60,
             color: theme.colorScheme.onPrimaryContainer,
           ),
         ),
         const SizedBox(height: 12),
         Text(
-          _currentUser!.username,
+          // Display full name if available and not empty, otherwise username
+          _currentUser!.fullName.isNotEmpty
+              ? _currentUser!.fullName
+              : _currentUser!.username,
           style: theme.textTheme.headlineSmall
               ?.copyWith(fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
         ),
+        // Optionally, display username as a sub-header if full name is shown
+        if (_currentUser!.fullName.isNotEmpty)
+          Text(
+            '@${_currentUser!.username}',
+            style: theme.textTheme.titleMedium
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
       ],
     );
   }
@@ -175,6 +189,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: theme.textTheme.titleLarge
                     ?.copyWith(color: theme.colorScheme.primary)),
             const Divider(height: 20),
+            // Show Full Name if available
+            if (_currentUser!.fullName.isNotEmpty)
+              _buildInfoRow(
+                  icon: Icons.person_outline,
+                  label: 'Full Name:',
+                  value: _currentUser!.fullName),
+            // Always show username
+            _buildInfoRow(
+                icon: Icons.account_circle_outlined,
+                label: 'Username:',
+                value: _currentUser!.username),
             _buildInfoRow(
                 icon: Icons.badge_outlined,
                 label: 'User ID:',
@@ -183,6 +208,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.admin_panel_settings_outlined,
                 label: 'Admin Status:',
                 value: _currentUser!.isAdmin ? 'Yes' : 'No'),
+            // TODO: Consider showing imagePath if relevant for display/debugging
+            // if (_currentUser!.imagePath.isNotEmpty)
+            //   _buildInfoRow(
+            //       icon: Icons.image_outlined,
+            //       label: 'Image Path:',
+            //       value: _currentUser!.imagePath),
           ],
         ),
       ),

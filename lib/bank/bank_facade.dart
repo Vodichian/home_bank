@@ -130,6 +130,28 @@ class BankFacade extends ChangeNotifier {
     }
   }
 
+  /// Retrieves a [User] by their ID.
+  ///
+  /// Throws [AuthenticationError] if the user is not logged in.
+  Future<User> getUser(int userId) async {
+    if (_currentUser == null) {
+      throw AuthenticationError('User is not logged in');
+    }
+    return await _client.getUser(userId, _currentUser!);
+  }
+
+  /// Updates an existing [User].
+  ///
+  /// Throws [AuthenticationError] if the user is not logged in.
+  /// Throws [AuthenticationError] if the user does not have permission to
+  /// update the specified user.
+  Future<int> updateUser(User updatedUser) async {
+    if (_currentUser == null) {
+      throw AuthenticationError('User is not logged in');
+    }
+    return await _client.saveUser(updatedUser, _currentUser!);
+  }
+
   Future<bool> deleteUser(User user) async {
     if (_currentUser == null) {
       throw AuthenticationError('User is not logged in');
