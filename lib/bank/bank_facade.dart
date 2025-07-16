@@ -62,7 +62,8 @@ class BankFacade extends ChangeNotifier {
   Future<void> switchServer(ServerType serverType) async {
     if (_currentServerConfig.type == serverType) {
       logger.i("Already on ${serverType.name}. No switch needed.");
-      if (!isConnected) { // If on the correct server but not connected, try to connect
+      if (!isConnected) {
+        // If on the correct server but not connected, try to connect
         await initialize();
       }
       return;
@@ -73,7 +74,8 @@ class BankFacade extends ChangeNotifier {
       await disconnect(); // Gracefully disconnect from the current server
     }
 
-    _currentServerConfig = (serverType == ServerType.live) ? liveServerConfig : testServerConfig;
+    _currentServerConfig =
+        (serverType == ServerType.live) ? liveServerConfig : testServerConfig;
     _currentUser = null; // Clear user session when switching servers
     notifyListeners(); // Notify about config change immediately
 
@@ -91,7 +93,8 @@ class BankFacade extends ChangeNotifier {
         await initialize(); // This will use _currentServerConfig
       } catch (e) {
         logger.e("Connection failed during login attempt: $e");
-        throw AuthenticationError('Connection failed. Please check server status or switch servers.');
+        throw AuthenticationError(
+            'Connection failed. Please check server status or switch servers.');
       }
     }
     // Proceed with login if connection is now established
@@ -102,7 +105,8 @@ class BankFacade extends ChangeNotifier {
   /// Logs out the current user by clearing their session locally.
   /// Does not disconnect from the server.
   Future<void> logout() async {
-    logger.i("BankFacade: Logging out user ${_currentUser?.username ?? 'N/A'}. Connection will remain active.");
+    logger.i(
+        "BankFacade: Logging out user ${_currentUser?.username ?? 'N/A'}. Connection will remain active.");
     _currentUser = null;
     notifyListeners(); // Crucial for GoRouter and UI updates
   }
@@ -196,7 +200,8 @@ class BankFacade extends ChangeNotifier {
   /// Disconnects from the server and clears the current user session.
   Future<void> disconnect() async {
     if (isConnected) {
-      logger.i("BankFacade: Disconnecting from server ${_currentServerConfig.name}...");
+      logger.i(
+          "BankFacade: Disconnecting from server ${_currentServerConfig.name}...");
       await _client.disconnect();
       logger.i("BankFacade: Successfully disconnected from server.");
     } else {
@@ -476,5 +481,9 @@ class BankFacade extends ChangeNotifier {
       throw AuthenticationError('An admin is required to delete a merchant');
     }
     await _client.removeMerchant(merchantToDelete, _currentUser!);
+  }
+
+  Future<ServerInfo> getServerInfo() async {
+    return await _client.getServerInfo();
   }
 }
