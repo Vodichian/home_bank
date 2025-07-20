@@ -471,11 +471,17 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
     String amountPrefix = '';
     String transactionTitle = 'Transaction';
     String subtitleDetails = '';
+    String authorizingUserDetails = '';
 
     if (currentUser != null) {
       isCurrentUserSource = tx.sourceUser.userId == currentUser.userId;
       isCurrentUserTarget = tx.targetUser?.userId == currentUser.userId;
     }
+
+    // Determine authorizing user details
+    // Assuming tx.authorizingUser is a User object or null
+    // And User object has a 'username' property
+    authorizingUserDetails = 'Auth: ${tx.authUser.username}';
 
     // Determine title, subtitle, and amount color based on transaction type
     // and whether the current user is source or target
@@ -559,13 +565,16 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
         tileIcon = Icons.receipt_long_outlined;
     }
 
+    bool isEffectivelyThreeLine = (tx.note != null && tx.note!.isNotEmpty) ||
+        authorizingUserDetails.isNotEmpty;
+
     return Card(
       elevation: 1.5,
       margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 0),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: amountColor.withValues(alpha: 0.1),
+          backgroundColor: amountColor.withAlpha(30), // Softer background
           foregroundColor: amountColor,
           child: Icon(tileIcon),
         ),
@@ -578,6 +587,7 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, // Important for dynamic height
           children: [
             Text(
               subtitleDetails,
@@ -596,7 +606,21 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+            if (authorizingUserDetails
+                .isNotEmpty) // Display authorizing user if available
+              Padding(
+                padding: const EdgeInsets.only(top: 2.0),
+                child: Text(
+                  authorizingUserDetails,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.blueGrey[700], fontWeight: FontWeight.w500),
+                  // Distinct style
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             Text(
+              // Always show date last
               dateFormat.format(tx.date!.toLocal()),
               style: theme.textTheme.bodySmall,
             ),
@@ -609,9 +633,9 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
             color: amountColor,
           ),
         ),
-        isThreeLine: (tx.note != null && tx.note!.isNotEmpty),
+        isThreeLine: isEffectivelyThreeLine,
+        // Use the dynamically determined value
         onTap: () {
-          // TODO: Implement navigation to a detailed transaction view if needed
           logger.d('Tapped on transaction: ${tx.id}');
           // Example: context.push('/transaction-details', extra: tx);
         },

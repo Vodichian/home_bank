@@ -364,6 +364,7 @@ class BankFacade extends ChangeNotifier {
           amount: pendingTx.amount,
           targetUser: targetUser, // User receiving the funds
           note: pendingTx.notes,
+          authUser: adminUser
         );
 
       case pt.PendingTransactionType.payment:
@@ -389,6 +390,7 @@ class BankFacade extends ChangeNotifier {
           amount: pendingTx.amount,
           merchant: targetMerchant, // Merchant receiving the payment
           note: pendingTx.notes,
+          authUser: adminUser
         );
     }
   }
@@ -418,7 +420,7 @@ class BankFacade extends ChangeNotifier {
       // 2. Submit the BankTransaction using BankClient's submit method
       // The submit method returns the transaction ID assigned by the server.
       int newTransactionId =
-          await _client.submit(bankTransactionToSubmit, adminUser);
+          await _client.submit(bankTransactionToSubmit);
 
       logger.i(
           "BankTransaction submitted successfully. Server assigned ID: $newTransactionId for PendingTx ID: ${pendingTx.id}");
