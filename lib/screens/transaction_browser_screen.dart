@@ -13,6 +13,7 @@ enum ClientTransactionType {
   withdrawal,
   payment,
   transfer,
+  interest,
   // Add any other types you might want to filter by,
   // ensuring their names match what the server might expect as strings.
 }
@@ -67,6 +68,7 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
     'Withdrawal': ClientTransactionType.withdrawal,
     'Payment': ClientTransactionType.payment,
     'Transfer': ClientTransactionType.transfer,
+    'Interest': ClientTransactionType.interest,
   };
   late String
       _selectedTransactionTypeDisplay; // Holds the selected display string, e.g., "Add Funds"
@@ -530,6 +532,12 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
               'From: ${tx.sourceUser.username} To: ${tx.targetUser?.username ?? 'Unknown User'}';
         }
         break;
+      case ClientTransactionType.interest: // <<< ADDED CASE
+        transactionTitle = 'Interest Accrued';
+        amountColor = Colors.teal.shade600; // A distinct positive color
+        amountPrefix = '+ ';
+        subtitleDetails = 'To: ${tx.sourceUser.username}'; // Interest is credited to the sourceUser
+        break;
       default: // Should not happen if server transaction types are mapped
         transactionTitle = 'Transaction: ${tx.transactionType}';
         subtitleDetails = 'From: ${tx.sourceUser.username}';
@@ -560,6 +568,9 @@ class _TransactionBrowserScreenState extends State<TransactionBrowserScreen> {
         } else {
           tileIcon = Icons.compare_arrows_outlined;
         }
+        break;
+      case ClientTransactionType.interest: // <<< ADDED CASE
+        tileIcon = Icons.trending_up; // Icon for interest/growth
         break;
       default:
         tileIcon = Icons.receipt_long_outlined;
