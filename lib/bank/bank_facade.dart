@@ -144,6 +144,12 @@ class BankFacade extends ChangeNotifier {
     return await _client.getUser(userId, _currentUser!);
   }
 
+  /// When fetching users for a dropdown
+  Future<List<User>> getSelectableUsers() async {
+    final allUsers = await _client.getUsers(currentUser!);
+    return allUsers.where((user) => !user.isSystemAccount).toList();
+  }
+
   /// Updates an existing [User].
   ///
   /// Throws [AuthenticationError] if the user is not logged in.
@@ -192,9 +198,36 @@ class BankFacade extends ChangeNotifier {
 
   Stream<List<User>> users() {
     if (_currentUser == null) {
-      throw AuthenticationError('User is not logged in');
+      // Option 1: Throw immediately
+      throw AuthenticationError('User is not logged in to stream users.');
+      // Option 2: Return an error stream (often better for UI handling)
+      // return Stream.error(AuthenticationError('User is not logged in to stream users.'));
     }
-    return _client.users(_currentUser!);
+
+    // Assume _client.users(_currentUser!) returns the raw stream from the gRPC client
+    // We will .map() this stream to transform its emitted lists.
+    return _client.users(_currentUser!).map((userList) {
+      // Apply the same filtering logic used in getSelectableUsers
+      // This ensures consistency between the initial fetch and subsequent stream updates.
+      logger.d("BankFacade: Stream 'users()' - Raw list count: ${userList.length}");
+      final filteredList = userList.where((user) {
+        // Your conditions for a "selectable" or "non-system" user
+        // For example, if 'isSystemAccount' is the flag:
+        return !user.isSystemAccount;
+        // If you also want to exclude the current user from this generic stream,
+        // you could add: && user.userId != _currentUser!.userId
+        // However, usually, a generic 'users' stream provides all (non-system) users,
+        // and the UI layer decides if the current user should be filtered out for a specific context.
+        // For a transfer screen, filtering the current user in the UI is common.
+      }).toList();
+      logger.d("BankFacade: Stream 'users()' - Filtered list count: ${filteredList.length}");
+      return filteredList;
+    }).handleError((error) {
+      // Optional: Log errors from the underlying stream
+      logger.e("BankFacade: Error in users stream: $error");
+      // Rethrow the error so subscribers can also handle it
+      throw error;
+    });
   }
 
   /// Disconnects from the server and clears the current user session.

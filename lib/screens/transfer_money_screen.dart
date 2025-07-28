@@ -60,7 +60,8 @@ class _TransferMoneyScreenState extends State<TransferMoneyScreen> {
       _currentSavingsAccount = await _bankFacade.getSavings();
 
       // Fetch initial list of users
-      _allUsers = await _bankFacade.getUsers();
+      _allUsers = await _bankFacade.getSelectableUsers();
+      logger.d(_allUsers);
       _filterUsers(); // Initial filter
 
       // Subscribe to real-time updates
