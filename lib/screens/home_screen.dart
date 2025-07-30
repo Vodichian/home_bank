@@ -295,14 +295,36 @@ class _HomeScreenState extends State<HomeScreen> {
         amountColor = Theme.of(context).colorScheme.error;
         isCredit = false; // Explicitly a debit
         break;
+      case 'interest':
+        title = 'Interest Earned';
+        subtitle = transaction.note ?? 'Interest credited to your account';
+        iconData = Icons.trending_up_rounded; // Or Icons.add_card_outlined, Icons.savings_outlined etc.
+        amountColor = Colors.green.shade700;
+        isCredit = true;
+        break;
       default:
         title = transaction.transactionType; // Display the raw type name
         subtitle = transaction.note ?? 'Details unavailable';
         iconData = Icons.sync_alt_rounded;
-        amountColor =
-            Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
-        // isCredit for default cases might be ambiguous; default to false or base on sourceUser
-        isCredit = transaction.sourceUser.userId != currentUser.userId;
+        // For unknown types, you might infer based on source/target if possible,
+        // but it's safer to have explicit types.
+        // If sourceUser is the system or bank, and target is user, it's likely a credit.
+        // If sourceUser is the user, it's likely a debit unless it's a special type.
+        if (transaction.targetUser?.userId == currentUser.userId &&
+            transaction.sourceUser.userId != currentUser.userId) {
+          isCredit = true;
+          amountColor = Colors.green.shade700;
+        } else if (transaction.sourceUser.userId == currentUser.userId &&
+            transaction.targetUser?.userId != currentUser.userId) {
+          isCredit = false;
+          amountColor = Theme.of(context).colorScheme.error;
+        } else {
+          // Ambiguous or self-transaction (though 'addFunds' covers one type of self-credit)
+          // Defaulting to neutral/black text color
+          amountColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+          // isCredit remains false or as per previous logic for default if any
+        }
+        break;
     }
 
     String formattedDate = 'Date N/A';

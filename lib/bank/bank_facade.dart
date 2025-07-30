@@ -521,4 +521,41 @@ class BankFacade extends ChangeNotifier {
   Future<ServerInfo> getServerInfo() async {
     return await _client.getServerInfo();
   }
+
+  /// Retrieves the total interest accrued for a user's account over a specified period.
+  ///
+  /// This method typically retrieves interest for the currently logged-in user.
+  /// If an admin is logged in, they can potentially query for other users,
+  /// assuming the `BankClient` and server backend support this (by passing a different `ownerUserId`).
+  ///
+  /// [ownerUserId]: The ID of the user whose interest is being queried. If null,
+  ///                it defaults to the currently logged-in user's ID.
+  /// [startDate]: Optional start date for the interest calculation period.
+  /// [endDate]: Optional end date for the interest calculation period.
+  ///
+  /// Throws [AuthenticationError] if the user is not logged in, or if the
+  /// logged-in user is not authorized to view the interest for the specified `ownerUserId`.
+  /// Throws [StateError] for other server-side errors.
+  Future<double> getInterestAccrued({
+    int? ownerUserId,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    if (_currentUser == null) {
+      throw AuthenticationError('User is not logged in.');
+    }
+
+    // Default to the current user's ID if ownerUserId is not provided.
+    final targetUserId = ownerUserId ?? _currentUser!.userId;
+
+    // The BankClient method requires authUser and ownerUserId separately.
+    // _currentUser is the authenticated user making the request.
+    // targetUserId is the user whose interest we are querying.
+    return await _client.getInterestAccrued(
+      _currentUser!,
+      targetUserId,
+      startDate: startDate,
+      endDate: endDate,
+    );
+  }
 }

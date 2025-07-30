@@ -1,10 +1,11 @@
+import 'dart:async'; // Make sure this is imported
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:home_bank/utils/globals.dart';
 import 'package:provider/provider.dart';
-import 'package:bank_server/bank.dart';
-import '../bank/bank_facade.dart';
-import 'dart:async'; // Required for StreamSubscription
+import 'package:bank_server/bank.dart'; // Your models
+import 'package:home_bank/bank/bank_facade.dart';
+import 'package:home_bank/utils/globals.dart'; // Your logger
 
 class InvestmentsScreen extends StatefulWidget {
   const InvestmentsScreen({super.key});
@@ -14,19 +15,21 @@ class InvestmentsScreen extends StatefulWidget {
 }
 
 class _InvestmentsScreenState extends State<InvestmentsScreen> {
-  // No longer a Future, but the Stream will be provided directly to StreamBuilder
-  // late Future<SavingsAccount> _savingsAccountFuture;
   late BankFacade _bankFacade;
-  Stream<SavingsAccount>? _savingsAccountStream; // To hold the stream
+  Stream<SavingsAccount>? _savingsAccountStream;
+  double? _interestYTD;
+  bool _isLoadingInterestYTD = false;
 
-  // Optional: For explicit refresh, though StreamBuilder handles updates
-  // StreamSubscription<SavingsAccount>? _savingsSubscription;
+  // No longer need _savingsAccountSubscription for this stream
+  // StreamSubscription<SavingsAccount>? _savingsAccountSubscription;
+
+  SavingsAccount? _currentSavingsAccountData; // To hold the latest data from stream
 
   @override
   void initState() {
     super.initState();
     _bankFacade = context.read<BankFacade>();
-    _initializeStream();
+    _initializeStream(); // Just initialize the stream, don't listen here
   }
 
   void _initializeStream() {
@@ -54,22 +57,87 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     }
   }
 
-  // Manual refresh is less critical with StreamBuilder, but can be kept if needed
-  // for explicit user action or to re-initialize the stream.
+  // This method will now be called from the StreamBuilder's builder when data arrives
+  Future<void> _fetchInterestYTD(int ownerUserId) async {
+    if (mounted) {
+      setState(() {
+        _isLoadingInterestYTD = true;
+        // Keep existing _interestYTD or clear it, depending on desired UX
+        // _interestYTD = null; // Option: Clear previous value while loading new one
+      });
+    }
+
+    try {
+      final now = DateTime.now();
+      final startOfYear = DateTime(now.year, 1, 1);
+
+      if (_bankFacade.currentUser == null) {
+        throw AuthenticationError(
+            "Cannot fetch interest YTD: User not authenticated.");
+      }
+
+      final interest = await _bankFacade.getInterestAccrued(
+        ownerUserId: ownerUserId,
+        startDate: startOfYear,
+        endDate: now,
+      );
+      if (mounted) {
+        setState(() {
+          _interestYTD = interest;
+          _isLoadingInterestYTD = false;
+        });
+      }
+    } on AuthenticationError catch (e) {
+      logger.e('Authentication error fetching YTD interest: ${e.message}');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Auth Error fetching YTD Interest: ${e.message}')),
+        );
+        setState(() {
+          _interestYTD = null;
+          _isLoadingInterestYTD = false;
+        });
+      }
+    } catch (e) {
+      logger.e('Failed to fetch YTD interest: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error fetching YTD Interest: ${e.toString()}')),
+        );
+        setState(() {
+          _interestYTD = null;
+          _isLoadingInterestYTD = false;
+        });
+      }
+    }
+  }
+
   void _refreshSavingsData() {
-    _initializeStream(); // This will create a new stream
+    // Re-initialize the stream. The StreamBuilder will pick up the new stream.
+    _initializeStream();
+    // Reset YTD interest as well, as it will be re-fetched when new stream data arrives.
+    if (mounted) {
+      setState(() {
+        _interestYTD = null;
+        _isLoadingInterestYTD =
+        false; // Could set to true if you want immediate loading
+        _currentSavingsAccountData = null;
+      });
+    }
   }
 
   @override
   void dispose() {
-    // _savingsSubscription?.cancel(); // Cancel if you were managing subscription manually
+    // _savingsAccountSubscription?.cancel(); // No longer needed for _savingsAccountStream
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Handle case where stream couldn't be initialized due to auth error in initState
     if (_savingsAccountStream == null && _bankFacade.currentUser == null) {
-      // Handle case where stream couldn't be initialized due to auth error in initState
       return Scaffold(
         appBar: AppBar(title: const Text('Savings Account')),
         body: Center(
@@ -91,6 +159,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
       );
     }
 
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Savings Account'),
@@ -103,7 +172,8 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             String errorMessage = 'Failed to load savings account data.';
             if (snapshot.error is AuthenticationError) {
               errorMessage =
-                  'Authentication Error: Please log in again. ${(snapshot.error as AuthenticationError).message}';
+              'Authentication Error: Please log in again. ${(snapshot
+                  .error as AuthenticationError).message}';
             } else {
               logger.e('Error in SavingsAccount stream: ${snapshot.error}');
               errorMessage += '\nDetails: ${snapshot.error.toString()}';
@@ -114,11 +184,10 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline,
-                        color: Colors.red, size: 48),
+                    const Icon(
+                        Icons.error_outline, color: Colors.red, size: 48),
                     const SizedBox(height: 16),
-                    Text(errorMessage,
-                        textAlign: TextAlign.center,
+                    Text(errorMessage, textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 16)),
                     const SizedBox(height: 16),
                     ElevatedButton(
@@ -131,7 +200,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                         }
                       },
                       child: Text(snapshot.error is AuthenticationError ||
-                              _bankFacade.currentUser == null
+                          _bankFacade.currentUser == null
                           ? 'Go to Login'
                           : 'Try Again'),
                     )
@@ -141,9 +210,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             );
           }
 
-          // 2. Check connection state (optional, but good for initial load)
-          // ConnectionState.waiting: Stream is waiting for the first event.
-          // ConnectionState.active: Stream has emitted at least one event and is active.
+          // 2. Check connection state
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: Column(
@@ -157,38 +224,49 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             );
           }
 
-          // 3. Check if data is available (after connection is active)
-          // Note: A stream might be active but not yet have data if the first event
-          // hasn't arrived. `snapshot.hasData` is the key check.
+          // 3. Check if data is available
           if (!snapshot.hasData) {
-            // This state might occur briefly or if the stream closes without error after emitting nothing.
-            // Or if the initial state from the server is "no account found" but not an error.
             return const Center(
                 child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(), // Or a different message
-                SizedBox(height: 16),
-                Text('Waiting for savings account data...'),
-              ],
-            ));
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Waiting for savings account data...'),
+                  ],
+                ));
           }
 
-          // 4. Data is available, display it
+          // 4. Data is available
           final savingsAccount = snapshot.data!;
+
+          // --- Fetch YTD Interest when SavingsAccount data changes ---
+          // Check if the current data is different from the last known data,
+          // or if interest hasn't been fetched yet for this data.
+          // This prevents re-fetching if the stream emits the same data multiple times.
+          if (_currentSavingsAccountData?.accountNumber !=
+              savingsAccount.accountNumber || // Example: Use a unique ID
+              _currentSavingsAccountData?.balance !=
+                  savingsAccount.balance || // Or other relevant fields
+              _interestYTD == null &&
+                  !_isLoadingInterestYTD) { // Or if interest YTD is not yet loaded and not currently loading
+            _currentSavingsAccountData = savingsAccount;
+            // Post a frame callback to ensure setState for _fetchInterestYTD
+            // is not called during the build phase of StreamBuilder
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) { // Ensure widget is still mounted
+                _fetchInterestYTD(_bankFacade.currentUser!.userId);
+              }
+            });
+          }
+          // --- End of YTD Interest Fetch Logic ---
+
 
           return Padding(
             padding: const EdgeInsets.all(16.0),
-            // RefreshIndicator is less critical with a stream, but can be kept
-            // if you want a manual way to potentially re-trigger stream initialization
-            // or perform some other refresh action.
             child: RefreshIndicator(
               onRefresh: () async {
-                _refreshSavingsData(); // This will re-initialize the stream
-                // The StreamBuilder will automatically update.
-                // You might await a short duration or a confirmation from the stream
-                // if the RefreshIndicator needs to wait for the new data.
-                // For simplicity, just re-initializing is often enough.
+                _refreshSavingsData();
               },
               child: ListView(
                 children: <Widget>[
@@ -214,15 +292,35 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                       _buildInfoRow(
                           title: 'Current Balance:',
                           value:
-                              '\$${savingsAccount.balance.toStringAsFixed(2)}',
+                          '\$${savingsAccount.balance.toStringAsFixed(2)}',
                           isCurrency: true),
                       _buildInfoRow(
                           title: 'Interest Rate:',
                           value:
-                              '${(savingsAccount.interestRate * 100).toStringAsFixed(2)}%'),
-                      _buildInfoRow(
+                          '${(savingsAccount.interestRate * 100)
+                              .toStringAsFixed(2)}%'),
+                      _isLoadingInterestYTD
+                          ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Interest Earned (YTD):',
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.w500)),
+                            SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ],
+                        ),
+                      )
+                          : _buildInfoRow(
                           title: 'Interest Earned (YTD):',
-                          value: '\$0.00', // Placeholder
+                          value: _interestYTD != null
+                              ? '\$${_interestYTD!.toStringAsFixed(2)}'
+                              : 'N/A',
                           isCurrency: true),
                     ],
                   ),
@@ -235,11 +333,10 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     );
   }
 
-  // Helper widgets _buildInfoCard and _buildInfoRow remain the same
   Widget _buildInfoCard(BuildContext context,
       {required String title,
-      required IconData icon,
-      required List<Widget> children}) {
+        required IconData icon,
+        required List<Widget> children}) {
     return Card(
       elevation: 2.0,
       margin: const EdgeInsets.symmetric(vertical: 8.0),
@@ -250,16 +347,15 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
           children: [
             Row(
               children: [
-                Icon(icon,
-                    color: Theme.of(context).colorScheme.primary, size: 28),
-                const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                ),
+                Icon(icon, color: Theme
+                    .of(context)
+                    .colorScheme
+                    .primary),
+                const SizedBox(width: 8),
+                Text(title, style: Theme
+                    .of(context)
+                    .textTheme
+                    .titleLarge),
               ],
             ),
             const Divider(height: 20, thickness: 1),
@@ -277,17 +373,16 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
-          Text(title,
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: isCurrency ? FontWeight.bold : FontWeight.normal,
-              color: isCurrency ? Colors.green.shade800 : null,
-            ),
-          ),
+          Text(title, style: const TextStyle(
+              fontSize: 16, fontWeight: FontWeight.w500)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: isCurrency ? FontWeight.bold : FontWeight.normal,
+                  color: isCurrency ? Theme
+                      .of(context)
+                      .colorScheme
+                      .secondary : null)),
         ],
       ),
     );
