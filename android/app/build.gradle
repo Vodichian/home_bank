@@ -23,10 +23,25 @@ if (flutterVersionName == null) {
     flutterVersionName = "1.0"
 }
 
+//def keystorePropertiesFile = rootProject.file('../key.properties') // Path relative to app/build.gradle (points to android/key.properties)
+def keystorePropertiesFile = new File(project.projectDir.parentFile, "key.properties")
+
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    try { // Add try-catch for loading
+        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    } catch (Exception e) {
+        println "DEBUG: Error loading keystoreProperties: ${e.getMessage()}" // DEBUG LINE
+    }
+} else {
+    println "DEBUG: keystorePropertiesFile does not exist (checked from app/build.gradle)." // DEBUG LINE
+}
+
 android {
     namespace = "com.vodichian.home_bank"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+//    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -43,11 +58,27 @@ android {
         versionName = flutterVersionName
     }
 
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists() && keystoreProperties.containsKey('storeFile')) {
+                // Add check for key too
+                storeFile file(keystoreProperties['storeFile']) // Resolves relative to android/app
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            } else {
+                println("Warning: keystoreProperties or storeFile key is missing. Release build will likely fail or be unsigned.")
+                // To make the build explicitly fail if signing info is missing:
+                // throw new GradleException("Signing information is missing. Cannot build release.")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+//            signingConfig = signingConfigs.debug
+            signingConfig = signingConfigs.release
         }
     }
 }
