@@ -33,7 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // GoRouter's redirect logic should automatically handle navigation to /login
       // because isLoggedIn (derived from currentUser != null) will become false.
       // Explicit navigation can also be done.
-      if (mounted) { // Check if the widget is still in the tree
+      if (context.mounted) { // Check if the widget is still in the tree
         GoRouter.of(context).go('/login'); // Direct navigation to login screen
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Successfully logged out.')),
@@ -41,7 +41,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       logger.e("ProfileScreen: Error during logout: $e");
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Logout failed: ${e.toString()}')),
         );
@@ -129,7 +129,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     },
                   );
 
-                  if (confirmLogout == true && mounted) { // Check mounted again
+                  if (confirmLogout == true && context.mounted) { // Check mounted again
                     await _performLogout(context);
                   }
                 },

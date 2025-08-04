@@ -1,6 +1,12 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+
 import 'package:home_bank/bank/bank_facade.dart'; // Your BankFacade
 import 'package:bank_server/bank.dart'; // Your User model from bank_server
 import 'package:home_bank/models/pending_transaction.dart'; // Your PendingTransaction model
@@ -84,6 +90,137 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
     }
   }
 
+  Future<void> _scanAdminQRCode() async {
+    var cameraStatus = await Permission.camera.status;
+    if (!mounted) return;
+
+    if (!cameraStatus.isGranted) {
+      cameraStatus = await Permission.camera.request();
+    }
+
+    if (!mounted) return;
+
+    if (cameraStatus.isGranted) {
+      final scannerController = MobileScannerController();
+      bool qrProcessed = false;
+
+      await showDialog(
+        context: context,
+        barrierDismissible: true, // User can dismiss by tapping outside
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Scan Admin QR Code'),
+            content: SizedBox(
+              width: 300,
+              height: 300,
+              child: MobileScanner(
+                controller: scannerController,
+                onDetect: (capture) {
+                  if (qrProcessed) return;
+                  qrProcessed = true;
+                  scannerController.stop();
+
+                  final List<Barcode> barcodes = capture.barcodes;
+                  if (barcodes.isNotEmpty) {
+                    final String? qrData = barcodes.first.rawValue;
+                    if (qrData != null) {
+                      try {
+                        final jsonData =
+                            jsonDecode(qrData) as Map<String, dynamic>;
+                        final username = jsonData['username'] as String?;
+                        final password = jsonData['password'] as String?;
+
+                        if (username != null && password != null) {
+                          _adminUsernameController.text = username;
+                          _adminPasswordController.text = password;
+
+                          if (mounted) {
+                            Navigator.of(dialogContext).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'Admin credentials populated! Authenticating...')),
+                            );
+                            _loginAdminForApproval();
+                          }
+                        } else {
+                          if (mounted) Navigator.of(dialogContext).pop();
+                          throw Exception(
+                              'Missing username or password in QR data.');
+                        }
+                      } catch (e) {
+                        logger.e('Error parsing QR code: $e');
+                        if (mounted) {
+                           Navigator.of(dialogContext).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('Failed to read QR data: $e')),
+                          );
+                        }
+                      }
+                    } else {
+                       if (mounted) Navigator.of(dialogContext).pop();
+                    }
+                  } else {
+                     if (mounted) Navigator.of(dialogContext).pop();
+                  }
+                },
+                errorBuilder: (context, error, child) {
+                  logger.e(
+                      'MobileScanner encountered an error: ${error.toString()}');
+                  // qrProcessed = true; // Ensure dialog can be dismissed if scanner fails critically
+                  // if (mounted) Navigator.of(dialogContext).pop(); // Consider auto-closing on critical error
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        'Scanner Error: ${error.toString()}\\nPlease ensure camera permissions are granted and the camera is not in use elsewhere.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () {
+                  if (!qrProcessed) scannerController.stop();
+                  Navigator.of(dialogContext).pop();
+                },
+              ),
+            ],
+          );
+        },
+      ).whenComplete(() {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          scannerController.dispose();
+        });
+      });
+    } else if (cameraStatus.isPermanentlyDenied) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+              'Camera permission is permanently denied. Please enable it in app settings.'),
+          action: SnackBarAction(
+            label: 'Settings',
+            onPressed: openAppSettings,
+          ),
+        ),
+      );
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Camera permission is required to scan QR codes.')),
+      );
+    }
+  }
+
   void _sendApprovalResult(bool isApproved, {String? rejectionReason}) {
     if (_currentAdminUser == null && isApproved) {
       // Safety check
@@ -96,10 +233,7 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
     final Map<String, dynamic> result = {
       'isApproved': isApproved,
       'adminUser': _currentAdminUser,
-      // This will be null if approval is false without login (e.g. reject before login)
-      // Or you might want to ensure admin is logged in even to reject.
       'pendingTransaction': widget.pendingTransaction,
-      // Pass back the original transaction
       'timestamp': DateTime.now().toIso8601String(),
     };
     if (!isApproved) {
@@ -117,7 +251,6 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () {
-            // User explicitly cancels from the close button
             context.pop({
               'status': 'cancelled_by_admin_ui',
               'pendingTransaction': widget.pendingTransaction
@@ -175,7 +308,20 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
+                    if (Platform.isAndroid)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.qr_code_scanner),
+                          label: const Text('Scan Admin QR'),
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 48),
+                            // Consider matching style of login button if desired
+                          ),
+                          onPressed: _scanAdminQRCode,
+                        ),
+                      ),
                     if (_isLoading)
                       const Center(child: CircularProgressIndicator())
                     else
@@ -209,7 +355,7 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
                         size: 48, color: Colors.green[700]),
                     const SizedBox(height: 8),
                     Text(
-                      'Admin "${_currentAdminUser!.username}" Authenticated',
+                      'Admin \"${_currentAdminUser!.username}\" Authenticated',
                       style: Theme.of(context)
                           .textTheme
                           .titleMedium
@@ -232,7 +378,6 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
                         minimumSize: const Size(double.infinity, 48),
                       ),
                       onPressed: () {
-                        // Optional: Show a dialog to confirm rejection or add a reason
                         _showRejectionDialog();
                       },
                     ),
@@ -271,16 +416,16 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
             Text('Transaction Details:',
                 style: Theme.of(context).textTheme.titleMedium),
             const Divider(height: 16),
-            _detailRow('Transaction ID:', tx.id),
-            _detailRow('Type:', tx.type.name), // Using .name for enum string
+            // _detailRow('Transaction ID:', tx.id),
+            _detailRow('Type:', tx.type.name),
             _detailRow('Amount:', '\$${tx.amount.toStringAsFixed(2)}'),
-            _detailRow(
-                'Requested At:', tx.requestTimestamp.toLocal().toString()),
-            _detailRow('Initiating User ID:', tx.initiatingUserId.toString()),
+            // _detailRow(
+            //     'Requested At:', tx.requestTimestamp.toLocal().toString()),
+            // _detailRow('Initiating User ID:', tx.initiatingUserId.toString()),
             if (tx.initiatingUserUsername != null)
               _detailRow('Initiating User:', tx.initiatingUserUsername!),
-            if (tx.targetAccountId != null)
-              _detailRow('Target Account ID:', tx.targetAccountId!.toString()),
+            // if (tx.targetAccountId != null)
+            //   _detailRow('Target Account ID:', tx.targetAccountId!.toString()),
             if (tx.targetAccountNickname != null)
               _detailRow('Target Account Name:', tx.targetAccountNickname!),
             if (tx.sourceAccountId != null)
@@ -341,7 +486,7 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
             TextButton(
               child: const Text('Cancel'),
               onPressed: () {
-                Navigator.of(dialogContext).pop(); // Dismiss dialog, no reason
+                Navigator.of(dialogContext).pop();
               },
             ),
             ElevatedButton(
@@ -358,9 +503,6 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
       },
     );
 
-    // If result is not null, it means "Confirm Rejection" was pressed.
-    // An empty string is a valid reason (or lack thereof).
-    // If result is null, "Cancel" was pressed or dialog dismissed otherwise.
     if (result != null) {
       _sendApprovalResult(false,
           rejectionReason: result.isNotEmpty
