@@ -355,7 +355,7 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
                         size: 48, color: Colors.green[700]),
                     const SizedBox(height: 8),
                     Text(
-                      'Admin \"${_currentAdminUser!.username}\" Authenticated',
+                      'Admin "${_currentAdminUser!.username}" Authenticated',
                       style: Theme.of(context)
                           .textTheme
                           .titleMedium
