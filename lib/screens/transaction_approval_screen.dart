@@ -1,16 +1,14 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
-import 'package:home_bank/bank/bank_facade.dart'; // Your BankFacade
-import 'package:bank_server/bank.dart'; // Your User model from bank_server
-import 'package:home_bank/models/pending_transaction.dart'; // Your PendingTransaction model
-import 'package:home_bank/utils/globals.dart'; // Your logger
+import 'package:home_bank/bank/bank_facade.dart';
+import 'package:bank_server/bank.dart';
+import 'package:home_bank/models/pending_transaction.dart';
+import 'package:home_bank/utils/globals.dart';
+import 'package:home_bank/widgets/qr_scanner_dialog_presenter.dart';
 
 class TransactionApprovalScreen extends StatefulWidget {
   final PendingTransaction pendingTransaction;
@@ -41,8 +39,6 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
   void initState() {
     super.initState();
     _bankFacade = context.read<BankFacade>();
-    // You could potentially pre-fill admin username if it's stored or often the same
-    // _adminUsernameController.text = "admin"; // Example
   }
 
   @override
@@ -90,140 +86,31 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
     }
   }
 
-  Future<void> _scanAdminQRCode() async {
-    var cameraStatus = await Permission.camera.status;
+  Future<void> _scanAdminQRCodeWithPresenter() async {
     if (!mounted) return;
 
-    if (!cameraStatus.isGranted) {
-      cameraStatus = await Permission.camera.request();
-    }
+    final credentials = await QrScannerDialogPresenter.show(
+      context,
+      dialogTitle: 'Scan Admin QR Code',
+      logger: logger,
+    );
 
-    if (!mounted) return;
+    if (!mounted) return; // Check mount status again after await
 
-    if (cameraStatus.isGranted) {
-      final scannerController = MobileScannerController();
-      bool qrProcessed = false;
-
-      await showDialog(
-        context: context,
-        barrierDismissible: true, // User can dismiss by tapping outside
-        builder: (dialogContext) {
-          return AlertDialog(
-            title: const Text('Scan Admin QR Code'),
-            content: SizedBox(
-              width: 300,
-              height: 300,
-              child: MobileScanner(
-                controller: scannerController,
-                onDetect: (capture) {
-                  if (qrProcessed) return;
-                  qrProcessed = true;
-                  scannerController.stop();
-
-                  final List<Barcode> barcodes = capture.barcodes;
-                  if (barcodes.isNotEmpty) {
-                    final String? qrData = barcodes.first.rawValue;
-                    if (qrData != null) {
-                      try {
-                        final jsonData =
-                            jsonDecode(qrData) as Map<String, dynamic>;
-                        final username = jsonData['username'] as String?;
-                        final password = jsonData['password'] as String?;
-
-                        if (username != null && password != null) {
-                          _adminUsernameController.text = username;
-                          _adminPasswordController.text = password;
-
-                          if (mounted) {
-                            Navigator.of(dialogContext).pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text(
-                                      'Admin credentials populated! Authenticating...')),
-                            );
-                            _loginAdminForApproval();
-                          }
-                        } else {
-                          if (mounted) Navigator.of(dialogContext).pop();
-                          throw Exception(
-                              'Missing username or password in QR data.');
-                        }
-                      } catch (e) {
-                        logger.e('Error parsing QR code: $e');
-                        if (mounted) {
-                           Navigator.of(dialogContext).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text('Failed to read QR data: $e')),
-                          );
-                        }
-                      }
-                    } else {
-                       if (mounted) Navigator.of(dialogContext).pop();
-                    }
-                  } else {
-                     if (mounted) Navigator.of(dialogContext).pop();
-                  }
-                },
-                errorBuilder: (context, error, child) {
-                  logger.e(
-                      'MobileScanner encountered an error: ${error.toString()}');
-                  // qrProcessed = true; // Ensure dialog can be dismissed if scanner fails critically
-                  // if (mounted) Navigator.of(dialogContext).pop(); // Consider auto-closing on critical error
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        'Scanner Error: ${error.toString()}\\nPlease ensure camera permissions are granted and the camera is not in use elsewhere.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.error),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            actions: [
-              TextButton(
-                child: const Text('Cancel'),
-                onPressed: () {
-                  if (!qrProcessed) scannerController.stop();
-                  Navigator.of(dialogContext).pop();
-                },
-              ),
-            ],
-          );
-        },
-      ).whenComplete(() {
-        Future.delayed(const Duration(milliseconds: 100), () {
-          scannerController.dispose();
-        });
-      });
-    } else if (cameraStatus.isPermanentlyDenied) {
-      if (!mounted) return;
+    if (credentials != null && credentials['username'] != null && credentials['password'] != null) {
+      _adminUsernameController.text = credentials['username']!;
+      _adminPasswordController.text = credentials['password']!;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-              'Camera permission is permanently denied. Please enable it in app settings.'),
-          action: SnackBarAction(
-            label: 'Settings',
-            onPressed: openAppSettings,
-          ),
-        ),
+        const SnackBar(content: Text('Admin credentials populated! Authenticating...')),
       );
+      _loginAdminForApproval();
     } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Camera permission is required to scan QR codes.')),
-      );
+      logger.i('Admin QR scan cancelled or failed to retrieve credentials.');
     }
   }
 
   void _sendApprovalResult(bool isApproved, {String? rejectionReason}) {
     if (_currentAdminUser == null && isApproved) {
-      // Safety check
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Admin not logged in. Cannot approve.')),
       );
@@ -241,6 +128,108 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
     }
     logger.i('Popping TransactionApprovalScreen with result: $result');
     context.pop(result);
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(width: 8),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionDetailsCard(PendingTransaction tx) {
+    // Original _buildTransactionDetailsCard content
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text('Transaction Details:',
+                style: Theme.of(context).textTheme.titleMedium),
+            const Divider(height: 16),
+            _detailRow('Type:', tx.type.name),
+            _detailRow('Amount:', '\$${tx.amount.toStringAsFixed(2)}'),
+            if (tx.initiatingUserUsername != null)
+              _detailRow('Initiating User:', tx.initiatingUserUsername!),
+            if (tx.targetAccountNickname != null)
+              _detailRow('Target Account Name:', tx.targetAccountNickname!),
+            if (tx.sourceAccountId != null)
+              _detailRow('Source Account ID:', tx.sourceAccountId!.toString()),
+            if (tx.sourceAccountNickname != null)
+              _detailRow('Source Account Name:', tx.sourceAccountNickname!),
+            if (tx.recipientUserId != null)
+              _detailRow('Recipient User ID:', tx.recipientUserId!.toString()),
+            if (tx.recipientUserUsername != null)
+              _detailRow('Recipient User:', tx.recipientUserUsername!),
+            if (tx.merchantId != null)
+              _detailRow('Merchant ID:', tx.merchantId.toString()),
+            if (tx.merchantName != null)
+              _detailRow('Merchant Name:', tx.merchantName!),
+            if (tx.notes != null && tx.notes!.isNotEmpty)
+              _detailRow('Notes:', tx.notes!),
+            const SizedBox(height: 8),
+            Center(
+                child: Text(tx.description,
+                    style: Theme.of(context).textTheme.bodySmall,
+                    textAlign: TextAlign.center)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showRejectionDialog() async {
+    // Original _showRejectionDialog content
+    final reasonController = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Reject Transaction'),
+          content: TextField(
+            controller: reasonController,
+            decoration: const InputDecoration(
+              hintText: 'Optional: Reason for rejection',
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 3,
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.error),
+              child: const Text('Confirm Rejection',
+                  style: TextStyle(color: Colors.white)),
+              onPressed: () {
+                Navigator.of(dialogContext).pop(reasonController.text.trim());
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != null) {
+      _sendApprovalResult(false,
+          rejectionReason: result.isNotEmpty
+              ? result
+              : 'Rejected by admin without explicit reason');
+    }
   }
 
   @override
@@ -317,9 +306,8 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
                           label: const Text('Scan Admin QR'),
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size(double.infinity, 48),
-                            // Consider matching style of login button if desired
                           ),
-                          onPressed: _scanAdminQRCode,
+                          onPressed: _scanAdminQRCodeWithPresenter, // Use the new method
                         ),
                       ),
                     if (_isLoading)
@@ -345,7 +333,7 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
                   ],
                 ),
               ),
-            ], // End of !_isAdminLoginSuccessful block
+            ],
 
             if (_isAdminLoginSuccessful && _currentAdminUser != null) ...[
               Center(
@@ -397,117 +385,11 @@ class _TransactionApprovalScreenState extends State<TransactionApprovalScreen> {
                   ),
                 ],
               ),
-            ], // End of _isAdminLoginSuccessful block
+            ],
             const SizedBox(height: 20),
           ],
         ),
       ),
     );
-  }
-
-  Widget _buildTransactionDetailsCard(PendingTransaction tx) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text('Transaction Details:',
-                style: Theme.of(context).textTheme.titleMedium),
-            const Divider(height: 16),
-            // _detailRow('Transaction ID:', tx.id),
-            _detailRow('Type:', tx.type.name),
-            _detailRow('Amount:', '\$${tx.amount.toStringAsFixed(2)}'),
-            // _detailRow(
-            //     'Requested At:', tx.requestTimestamp.toLocal().toString()),
-            // _detailRow('Initiating User ID:', tx.initiatingUserId.toString()),
-            if (tx.initiatingUserUsername != null)
-              _detailRow('Initiating User:', tx.initiatingUserUsername!),
-            // if (tx.targetAccountId != null)
-            //   _detailRow('Target Account ID:', tx.targetAccountId!.toString()),
-            if (tx.targetAccountNickname != null)
-              _detailRow('Target Account Name:', tx.targetAccountNickname!),
-            if (tx.sourceAccountId != null)
-              _detailRow('Source Account ID:', tx.sourceAccountId!.toString()),
-            if (tx.sourceAccountNickname != null)
-              _detailRow('Source Account Name:', tx.sourceAccountNickname!),
-            if (tx.recipientUserId != null)
-              _detailRow('Recipient User ID:', tx.recipientUserId!.toString()),
-            if (tx.recipientUserUsername != null)
-              _detailRow('Recipient User:', tx.recipientUserUsername!),
-            if (tx.merchantId != null)
-              _detailRow('Merchant ID:', tx.merchantId.toString()),
-            if (tx.merchantName != null)
-              _detailRow('Merchant Name:', tx.merchantName!),
-            if (tx.notes != null && tx.notes!.isNotEmpty)
-              _detailRow('Notes:', tx.notes!),
-            const SizedBox(height: 8),
-            Center(
-                child: Text(tx.description,
-                    style: Theme.of(context).textTheme.bodySmall,
-                    textAlign: TextAlign.center)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(width: 8),
-          Expanded(child: Text(value)),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _showRejectionDialog() async {
-    final reasonController = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Reject Transaction'),
-          content: TextField(
-            controller: reasonController,
-            decoration: const InputDecoration(
-              hintText: 'Optional: Reason for rejection',
-              border: OutlineInputBorder(),
-            ),
-            maxLines: 3,
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error),
-              child: const Text('Confirm Rejection',
-                  style: TextStyle(color: Colors.white)),
-              onPressed: () {
-                Navigator.of(dialogContext).pop(reasonController.text.trim());
-              },
-            ),
-          ],
-        );
-      },
-    );
-
-    if (result != null) {
-      _sendApprovalResult(false,
-          rejectionReason: result.isNotEmpty
-              ? result
-              : 'Rejected by admin without explicit reason');
-    }
   }
 }
