@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:convert'; // Make sure dart:convert is imported for jsonEncode, jsonDecode, utf8, base64Decode
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -9,6 +9,25 @@ import 'package:provider/provider.dart';
 
 import '../bank/bank_facade.dart';
 import '../utils/globals.dart';
+
+// --- SHARED SECRET STRING KEY - FOR DE-OBFUSCATION ---
+// IMPORTANT: Must be IDENTICAL to the key in the generator app.
+const String _sharedSecretStringKey = "MySuperSecretToyKey123!@#";
+// --- END SHARED SECRET STRING KEY ---
+
+// XOR Helper Function
+List<int> _xorWithKey(List<int> data, String keyString) {
+  final keyBytes = utf8.encode(keyString);
+  if (keyBytes.isEmpty) {
+    logger.w("XOR key is empty. Data will not be de-obfuscated correctly.");
+    return List.from(data);
+  }
+  final output = List<int>.filled(data.length, 0);
+  for (int i = 0; i < data.length; i++) {
+    output[i] = data[i] ^ keyBytes[i % keyBytes.length];
+  }
+  return output;
+}
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -28,7 +47,6 @@ class _LoginScreenState extends State<LoginScreen> {
       String password = _passwordController.text;
       final bankAction = context.read<BankFacade>();
 
-      // Ensure context is still valid before showing dialog
       if (!mounted) return;
 
       showDialog(
@@ -41,12 +59,10 @@ class _LoginScreenState extends State<LoginScreen> {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               } else {
-                // Ensure context is still valid before popping dialog
                 if (Navigator.of(dialogContext).canPop()) {
                   Navigator.pop(dialogContext);
                 }
                 
-                // Ensure context is still valid for ScaffoldMessenger
                 if (mounted) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (snapshot.hasError) {
@@ -58,7 +74,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       );
                     } else {
                       logger.i("Login successful, router will redirect.");
-                      // Navigation is handled by the GoRouter's redirect logic
                     }
                   });
                 }
@@ -79,11 +94,11 @@ class _LoginScreenState extends State<LoginScreen> {
       cameraStatus = await Permission.camera.request();
     }
 
-    if (!mounted) return; // Check again after await
+    if (!mounted) return; 
 
     if (cameraStatus.isGranted) {
       final scannerController = MobileScannerController();
-      bool qrProcessed = false; // Flag to ensure processing only once
+      bool qrProcessed = false; 
 
       await showDialog(
         context: context,
@@ -97,17 +112,32 @@ class _LoginScreenState extends State<LoginScreen> {
               child: MobileScanner(
                 controller: scannerController,
                 onDetect: (capture) {
-                  if (qrProcessed) return; // Already processed a QR code
+                  if (qrProcessed) return; 
                   qrProcessed = true;
 
-                  scannerController.stop(); // Stop scanning immediately
+                  scannerController.stop(); 
 
                   final List<Barcode> barcodes = capture.barcodes;
                   if (barcodes.isNotEmpty) {
-                    final String? qrData = barcodes.first.rawValue;
-                    if (qrData != null) {
+                    final String? qrDataFromScan = barcodes.first.rawValue;
+                    if (qrDataFromScan != null) {
                       try {
-                        final jsonData = jsonDecode(qrData) as Map<String, dynamic>;
+                        String processedQrJsonData = qrDataFromScan; // This will hold the JSON string
+
+                        if (qrDataFromScan.startsWith("xor_v1:")) {
+                          logger.i("Attempting to de-obfuscate QR data...");
+                          final base64String = qrDataFromScan.substring("xor_v1:".length);
+                          final obfuscatedBytes = base64Decode(base64String); // from dart:convert
+                          final originalBytes = _xorWithKey(obfuscatedBytes, _sharedSecretStringKey);
+                          processedQrJsonData = utf8.decode(originalBytes); // from dart:convert
+                          logger.i('Successfully de-obfuscated QR data.');
+                        } else {
+                          logger.w('QR data is not in the expected "xor_v1:" obfuscated format. Processing as plain text.');
+                          // For a toy app, we can allow falling back to plain JSON for older QR codes or testing.
+                          // In a more secure app, you might want to reject non-prefixed data or handle it differently.
+                        }
+                        
+                        final jsonData = jsonDecode(processedQrJsonData) as Map<String, dynamic>; // from dart:convert
                         final username = jsonData['username'] as String?;
                         final password = jsonData['password'] as String?;
 
@@ -115,32 +145,31 @@ class _LoginScreenState extends State<LoginScreen> {
                           _usernameController.text = username;
                           _passwordController.text = password;
                           
-                          // Ensure context is still valid before popping dialog & showing SnackBar
                           if (mounted) {
-                             Navigator.of(dialogContext).pop(); // Pop dialog first
+                             Navigator.of(dialogContext).pop(); 
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Credentials populated! Logging in...')),
                             );
-                            _performLogin(); // Then attempt login
+                            _performLogin(); 
                           }
                         } else {
-                           Navigator.of(dialogContext).pop(); // Pop on error too
+                           if (mounted) Navigator.of(dialogContext).pop();
                           throw Exception('Missing username or password in QR data.');
                         }
                       } catch (e) {
                         logger.e('Error parsing QR code: $e');
                         if (mounted) {
-                          Navigator.of(dialogContext).pop(); // Pop on error too
+                          Navigator.of(dialogContext).pop(); 
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Failed to read QR data: $e')),
+                            SnackBar(content: Text('Failed to read QR data: $e. Ensure it is a valid format.')),
                           );
                         }
                       }
                     } else {
-                       if (mounted) Navigator.of(dialogContext).pop(); // Pop if no QR data
+                       if (mounted) Navigator.of(dialogContext).pop(); 
                     }
                   } else {
-                     if (mounted) Navigator.of(dialogContext).pop(); // Pop if no barcodes
+                     if (mounted) Navigator.of(dialogContext).pop();
                   }
                 },
                 errorBuilder: (context, error, child) {
@@ -162,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
               TextButton(
                 child: const Text('Cancel'),
                 onPressed: () {
-                  if (!qrProcessed) scannerController.stop(); // Stop if not already stopped
+                  if (!qrProcessed) scannerController.stop(); 
                   Navigator.of(dialogContext).pop();
                 },
               ),
@@ -270,7 +299,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       textStyle: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.bold),
                     ),
-                    onPressed: _performLogin, // Changed to call the new method
+                    onPressed: _performLogin, 
                     child: const Text('Login'),
                   ),
                   const SizedBox(height: 8), 
@@ -296,17 +325,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     icon: const Icon(Icons.dns_outlined),
                     label: const Text('Switch Server'),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      textStyle: const TextStyle(fontSize: 15),
-                      side: BorderSide(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .outline
-                              .withValues(alpha: 0.7)),
+                      padding: const EdgeInsets.symmetric(vertical: 12), // Adjusted padding
                     ),
-                    onPressed: () {
-                      context.go('/select-server');
-                    },
+                    onPressed: () => context.go('/serverSelection'),
                   ),
                 ],
               ),
