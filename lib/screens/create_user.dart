@@ -131,59 +131,64 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     }
 
     final String username = _usernameController.text;
-    final String password = _passwordController.text; // Ensure this is available and appropriate to pass
+    final String password = _passwordController.text;
     final String fullName = _fullNameController.text;
 
-    // Basic validation: ensure necessary fields for the generator are not empty.
-    // Adjust as needed based on what bank_card_generator.exe requires.
-    if (username.isEmpty || password.isEmpty) {
-         _logger.w("Cannot launch card generator: Username or password is missing.");
+    if (username.isEmpty || password.isEmpty || fullName.isEmpty) {
+         _logger.w("Cannot launch card generator: Username, password, or full name is missing.");
          ScaffoldMessenger.of(context).showSnackBar(
-           const SnackBar(content: Text("Please fill in username and password to generate a card.")),
+           const SnackBar(content: Text("Please fill in username, password, and full name to generate a card.")),
         );
         return;
     }
 
     try {
-      // Get the directory of the currently running home_bank.exe
-      final String exePath = Platform.resolvedExecutable;
-      final String exeDir = p.dirname(exePath);
-
-      // Construct the relative path to the bundled bank_card_generator.exe
-      // This path assumes your Flutter build bundles assets as expected for Windows.
-      final String executableRelativePath = p.join(
+      final String mainAppExeDir = p.dirname(Platform.resolvedExecutable);
+      
+      final String generatorRelativePath = p.join(
           'data', 'flutter_assets', 'assets', 'executables', 'bank_card_generator', 'bank_card_generator.exe');
-      final String generatorPath = p.join(exeDir, executableRelativePath);
+      final String generatorAbsolutePath = p.join(mainAppExeDir, generatorRelativePath);
+      final String generatorDir = p.dirname(generatorAbsolutePath);
 
-      _logger.i("Attempting to launch bank card generator from: $generatorPath");
-      _logger.i("With arguments: --username '$username' --password '$password' --fullname '$fullName'");
+      // Construct the absolute path to where logo.png is expected to be bundled
+      // relative to the main application's executable directory.
+      final String logoAssetAbsolutePath = p.join(mainAppExeDir, 'data', 'flutter_assets', 'assets', 'logo.png');
 
-      // Check if the executable exists before trying to run it
-      final generatorFile = File(generatorPath);
+
+      _logger.i("Attempting to launch bank card generator from: $generatorAbsolutePath");
+      
+      final List<String> arguments = [
+        '--APP_USERNAME',
+        username,
+        '--APP_PASSWORD',
+        password,
+        '--APP_FULL_NAME',
+        fullName,
+        '--APP_LOGO_IMAGE',
+        logoAssetAbsolutePath, 
+      ];
+
+      if (_imagePath != null && _imagePath!.isNotEmpty) {
+        arguments.addAll(['--APP_PROFILE_IMAGE', _imagePath!]);
+      }
+      _logger.i("With arguments: ${arguments.join(' ')}");
+
+
+      final generatorFile = File(generatorAbsolutePath);
       if (!await generatorFile.exists()) {
-        _logger.e("Bank card generator executable not found at $generatorPath");
+        _logger.e("Bank card generator executable not found at $generatorAbsolutePath");
         if(mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Error: Bank card generator executable not found.")),
+            SnackBar(content: Text("Error: Bank card generator executable not found at $generatorAbsolutePath")),
           );
         }
         return;
       }
       
-      // runInShell: true can be useful on Windows if you have issues with paths or permissions,
-      // but it's also good to try without it first.
-      // If bank_card_generator.exe is a console app, a console window might flash open.
       final processResult = await Process.run(
-        generatorPath,
-        [
-          '--APP_USERNAME',
-          username,
-          '--APP_PASSWORD',
-          password, 
-          '--APP_FULL_NAME',
-          fullName,
-        ],
-        workingDirectory: p.dirname(generatorPath), // Optional: set working directory if .exe needs it
+        generatorAbsolutePath,
+        arguments,
+        workingDirectory: generatorDir,
       );
 
       _logger.i("Bank card generator stdout: ${processResult.stdout}");
@@ -275,7 +280,6 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
             return null;
           },
         ),
-        // Image picking UI (optional)
         const SizedBox(height: 20),
         ElevatedButton(
           onPressed: _pickImage,
@@ -339,41 +343,35 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 _buildCredentialsForm()
               else
                 _buildFullNameForm(),
-              const SizedBox(height: 10), // Reduced spacing a bit
+              const SizedBox(height: 10), 
               if (Platform.isWindows && _currentStep == CreateUserStep.enterFullName)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8.0),
                   child: ElevatedButton.icon(
-                    icon: const Icon(Icons.credit_card),
+                    icon: const Icon(Icons.credit_card), // Example icon
                     label: const Text('Generate User Card'),
                     onPressed: _launchBankCardGenerator,
-                    style: ElevatedButton.styleFrom(
-                      // backgroundColor: Colors.teal, // Optional: for distinct styling
-                    ),
                   ),
                 ),
-              const SizedBox(height: 10), // Adjusted spacing
+              const SizedBox(height: 20),
               if (_isLoading)
                 const Center(child: CircularProgressIndicator())
               else
                 ElevatedButton(
                   onPressed: _handleUserCreationFlow,
-                  child: Text(_currentStep == CreateUserStep.enterCredentials
-                      ? 'Next: Enter Full Name'
-                      : 'Finish Creation'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: Text(
+                      _currentStep == CreateUserStep.enterCredentials
+                          ? 'Next: Enter Full Name'
+                          : 'Finish Creation & Login',
+                      style: const TextStyle(fontSize: 16)),
                 ),
             ],
           ),
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _passwordController.dispose();
-    _usernameController.dispose();
-    _fullNameController.dispose();
-    super.dispose();
   }
 }
