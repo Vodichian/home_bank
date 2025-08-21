@@ -199,7 +199,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    onPressed: () => context.go('/serverSelection'),
+                    onPressed: () => context.go('/select-server'),
                   ),
                 ],
               ),
