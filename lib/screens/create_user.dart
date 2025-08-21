@@ -1,11 +1,12 @@
+import 'dart:io'; // For File type, Platform, Process
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:home_bank/bank/bank_facade.dart';
-import 'dart:io'; // For File type if you were still using _imagePath for server upload
-import 'package:image_picker/image_picker.dart'; // If you keep image picking
+import 'package:image_picker/image_picker.dart';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 import 'package:bank_server/bank.dart'; // Required for User object
+import 'package:path/path.dart' as p; // For path manipulation
 
 class CreateUserScreen extends StatefulWidget {
   const CreateUserScreen({super.key});
@@ -108,7 +109,6 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   }
 
   Future<void> _pickImage() async {
-    // This part remains if you still want image picking functionality
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
@@ -118,6 +118,95 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       setState(() {
         _imagePath = pickedFile.path;
       });
+    }
+  }
+
+  Future<void> _launchBankCardGenerator() async {
+    if (!Platform.isWindows) {
+      _logger.w("Bank card generator can only be launched on Windows.");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Bank card generator is only available on Windows.")),
+      );
+      return;
+    }
+
+    final String username = _usernameController.text;
+    final String password = _passwordController.text; // Ensure this is available and appropriate to pass
+    final String fullName = _fullNameController.text;
+
+    // Basic validation: ensure necessary fields for the generator are not empty.
+    // Adjust as needed based on what bank_card_generator.exe requires.
+    // if (username.isEmpty || password.isEmpty || fullName.isEmpty) {
+    //      _logger.w("Cannot launch card generator: Username, password, or full name is missing.");
+    //      ScaffoldMessenger.of(context).showSnackBar(
+    //        const SnackBar(content: Text("Please fill in username, password, and full name to generate a card.")),
+    //     );
+    //     return;
+    // }
+
+    try {
+      // Get the directory of the currently running home_bank.exe
+      final String exePath = Platform.resolvedExecutable;
+      final String exeDir = p.dirname(exePath);
+
+      // Construct the relative path to the bundled bank_card_generator.exe
+      // This path assumes your Flutter build bundles assets as expected for Windows.
+      final String executableRelativePath = p.join(
+          'data', 'flutter_assets', 'assets', 'executables', 'bank_card_generator', 'bank_card_generator.exe');
+      final String generatorPath = p.join(exeDir, executableRelativePath);
+
+      _logger.i("Attempting to launch bank card generator from: $generatorPath");
+      _logger.i("With arguments: --username '$username' --password '$password' --fullname '$fullName'");
+
+      // Check if the executable exists before trying to run it
+      final generatorFile = File(generatorPath);
+      if (!await generatorFile.exists()) {
+        _logger.e("Bank card generator executable not found at $generatorPath");
+        if(mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Error: Bank card generator executable not found.")),
+          );
+        }
+        return;
+      }
+      
+      // runInShell: true can be useful on Windows if you have issues with paths or permissions,
+      // but it's also good to try without it first.
+      // If bank_card_generator.exe is a console app, a console window might flash open.
+      final processResult = await Process.run(
+        generatorPath,
+        [
+          '--APP_USERNAME',
+          username,
+          '--APP_PASSWORD',
+          password, 
+          // '--fullname',
+          // fullName,
+        ],
+        workingDirectory: p.dirname(generatorPath), // Optional: set working directory if .exe needs it
+      );
+
+      _logger.i("Bank card generator stdout: ${processResult.stdout}");
+      _logger.e("Bank card generator stderr: ${processResult.stderr}");
+      _logger.i("Bank card generator exit code: ${processResult.exitCode}");
+
+      if (!mounted) return;
+
+      if (processResult.exitCode == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Bank card generator launched successfully (check its output).")),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Bank card generator failed. Exit code: ${processResult.exitCode}. Error: ${processResult.stderr}")),
+        );
+      }
+    } catch (e, s) {
+      _logger.e("Error launching bank card generator: $e", error: e, stackTrace: s);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("An error occurred while launching the card generator: $e")),
+      );
     }
   }
 
@@ -164,8 +253,6 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     return null;
                   },
                   onChanged: (text) {
-                    // Trigger rebuild of FutureBuilder by changing state
-                    // Minimal setState to re-evaluate the FutureBuilder
                     setState(() {});
                   },
                 );
@@ -232,14 +319,11 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
               if (_currentStep == CreateUserStep.enterFullName) {
-                // If on full name step, go back to credentials step
-                // Potentially clear _createdUserId or handle this state change carefully
                 setState(() {
                   _currentStep = CreateUserStep.enterCredentials;
-                  _createdUserId = null; // Reset created user ID
+                  _createdUserId = null; 
                 });
               } else {
-                // Otherwise, go back to login screen
                 context.go('/login');
               }
             }),
@@ -255,7 +339,20 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 _buildCredentialsForm()
               else
                 _buildFullNameForm(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10), // Reduced spacing a bit
+              if (Platform.isWindows) // Conditionally display the button
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.credit_card),
+                    label: const Text('Generate User Card'),
+                    onPressed: _launchBankCardGenerator,
+                    style: ElevatedButton.styleFrom(
+                      // backgroundColor: Colors.teal, // Optional: for distinct styling
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 10), // Adjusted spacing
               if (_isLoading)
                 const Center(child: CircularProgressIndicator())
               else
