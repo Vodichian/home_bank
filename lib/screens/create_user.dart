@@ -136,13 +136,13 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
 
     // Basic validation: ensure necessary fields for the generator are not empty.
     // Adjust as needed based on what bank_card_generator.exe requires.
-    // if (username.isEmpty || password.isEmpty || fullName.isEmpty) {
-    //      _logger.w("Cannot launch card generator: Username, password, or full name is missing.");
-    //      ScaffoldMessenger.of(context).showSnackBar(
-    //        const SnackBar(content: Text("Please fill in username, password, and full name to generate a card.")),
-    //     );
-    //     return;
-    // }
+    if (username.isEmpty || password.isEmpty) {
+         _logger.w("Cannot launch card generator: Username or password is missing.");
+         ScaffoldMessenger.of(context).showSnackBar(
+           const SnackBar(content: Text("Please fill in username and password to generate a card.")),
+        );
+        return;
+    }
 
     try {
       // Get the directory of the currently running home_bank.exe
@@ -180,8 +180,8 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
           username,
           '--APP_PASSWORD',
           password, 
-          // '--fullname',
-          // fullName,
+          '--APP_FULL_NAME',
+          fullName,
         ],
         workingDirectory: p.dirname(generatorPath), // Optional: set working directory if .exe needs it
       );
@@ -340,7 +340,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
               else
                 _buildFullNameForm(),
               const SizedBox(height: 10), // Reduced spacing a bit
-              if (Platform.isWindows) // Conditionally display the button
+              if (Platform.isWindows && _currentStep == CreateUserStep.enterFullName)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8.0),
                   child: ElevatedButton.icon(
