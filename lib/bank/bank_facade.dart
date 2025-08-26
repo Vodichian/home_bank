@@ -558,4 +558,64 @@ class BankFacade extends ChangeNotifier {
       endDate: endDate,
     );
   }
+
+  /// Exports the entire bank database to a JSON string.
+  /// Requires the current user to be an administrator.
+  Future<String> exportDatabaseToJson() async {
+    if (_currentUser == null) {
+      throw AuthenticationError(
+          'User is not logged in. Cannot export database.');
+    }
+    if (!_currentUser!.isAdmin) {
+      throw AuthenticationError(
+          'User is not an admin. Admin privileges are required to export the database.');
+    }
+    // Assuming the _client.exportDatabaseToJson method handles API calls and returns the JSON string
+    // or throws an error if the underlying client call fails or returns a fail message.
+    logger.i("BankFacade: User ${_currentUser!
+        .username} is exporting database to JSON.");
+    try {
+      return await _client.exportDatabaseToJson(_currentUser!);
+    } catch (e) {
+      logger.e("BankFacade: Error exporting database: $e");
+      rethrow; // Propagate the error
+    }
+  }
+
+  /// Imports a bank database from a JSON string.
+  /// Requires the current user to be an administrator.
+  /// The [jsonData] parameter contains the database content to import.
+  Future<bool> importDatabaseFromJson(String jsonData) async {
+    if (_currentUser == null) {
+      throw AuthenticationError(
+          'User is not logged in. Cannot import database.');
+    }
+    if (!_currentUser!.isAdmin) {
+      throw AuthenticationError(
+          'User is not an admin. Admin privileges are required to import the database.');
+    }
+    // Assuming the _client.importDatabaseFromJson method handles API calls and returns a success boolean
+    // or throws an error if the underlying client call fails or returns a fail message.
+    logger.i("BankFacade: User ${_currentUser!
+        .username} is importing database from JSON.");
+    try {
+      final success = await _client.importDatabaseFromJson(
+          _currentUser!, jsonData);
+      if (success) {
+        logger.i("BankFacade: Database import successful.");
+        // Consider if any local state needs to be refreshed or invalidated after import.
+        // For example, if currentUser's details might have changed, you might want to re-fetch them
+        // or notify listeners broadly if the whole dataset could have changed.
+        // For now, just returning success. A full app refresh or re-login might be
+        // a good idea for the UI to suggest to the user after an import.
+      } else {
+        logger.w(
+            "BankFacade: Database import reported as unsuccessful by the client.");
+      }
+      return success;
+    } catch (e) {
+      logger.e("BankFacade: Error importing database: $e");
+      rethrow; // Propagate the error
+    }
+  }
 }

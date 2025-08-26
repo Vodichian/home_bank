@@ -1,8 +1,14 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data'; // Added for Uint8List
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:home_bank/bank/bank_facade.dart';
 import 'package:bank_server/bank.dart'; // Required for ServerInfo model
 import 'package:home_bank/utils/globals.dart'; // For logger
+import 'package:provider/provider.dart';
+// import 'package:path/path.dart' as p; // Not strictly used yet, but good for path manipulation
 
 class ServerManagementScreen extends StatefulWidget {
   const ServerManagementScreen({super.key});
@@ -15,6 +21,9 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
   Future<ServerInfo>? _serverInfoFuture;
   late BankFacade _bankFacade;
 
+  bool _isExporting = false;
+  bool _isImporting = false;
+
   @override
   void initState() {
     super.initState();
@@ -23,13 +32,11 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
   }
 
   void _fetchServerInfo() {
-    // Only fetch if the client is connected
     if (_bankFacade.isConnected) {
       setState(() {
         _serverInfoFuture = _bankFacade.getServerInfo();
       });
     } else {
-      // Set future to an error if not connected, so FutureBuilder can handle it
       setState(() {
         _serverInfoFuture = Future.error(
             Exception("Not connected. Cannot fetch server info."));
@@ -39,9 +46,135 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
     }
   }
 
+  Future<void> _handleExportDatabase() async {
+    if (!mounted) return;
+    if (_bankFacade.currentUser == null || !_bankFacade.currentUser!.isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Error: Admin privileges required for export.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isExporting = true;
+    });
+
+    try {
+      final String jsonData = await _bankFacade.exportDatabaseToJson();
+
+      // Pretty print JSON for readability before converting to bytes
+      const jsonEncoder = JsonEncoder.withIndent('  ');
+      final prettyJsonData = jsonEncoder.convert(jsonDecode(jsonData));
+      final Uint8List fileBytes = utf8.encode(prettyJsonData); // utf8 is from dart:convert
+
+
+      // Ask user where to save the file
+      String? outputPath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Please select an output file:',
+        fileName: 'bank_export_${DateTime.now().toIso8601String().split('T').first}.json',
+        allowedExtensions: ['json'],
+        type: FileType.custom,
+        bytes: fileBytes, // Pass the bytes directly for Android/iOS
+      );
+
+      if (outputPath != null) {
+        // File is already saved by file_picker when bytes are provided.
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Database exported successfully to $outputPath')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Export cancelled by user.')),
+          );
+        }
+      }
+    } catch (e) {
+      logger.e("Error exporting database: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error exporting database: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExporting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleImportDatabase() async {
+    if (!mounted) return;
+    if (_bankFacade.currentUser == null || !_bankFacade.currentUser!.isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Error: Admin privileges required for import.')),
+      );
+      return;
+    }
+
+    // Ask user to pick a JSON file
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+    );
+
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        _isImporting = true;
+      });
+      try {
+        final file = File(result.files.single.path!);
+        final String jsonData = await file.readAsString();
+
+        final bool success = await _bankFacade.importDatabaseFromJson(jsonData);
+
+        if (mounted) {
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Database imported successfully! Consider restarting the app or server.')),
+            );
+            // Optionally, refresh some data or navigate away
+            _fetchServerInfo(); // Re-fetch server info as an example
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Database import failed. Check server logs.')),
+            );
+          }
+        }
+      } catch (e) {
+        logger.e("Error importing database: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error importing database: $e')),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isImporting = false;
+          });
+        }
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Import cancelled or no file selected.')),
+        );
+      }
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final bankFacade = context.watch<BankFacade>();
+    final bool isAdminConnected = bankFacade.isConnected && (bankFacade.currentUser?.isAdmin ?? false);
 
     bool needsFetch = false;
 
@@ -49,30 +182,15 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
       if (_serverInfoFuture == null) {
         needsFetch = true;
       } else {
-        // Check if the future previously completed with an error.
-        // We do this by trying to attach a catchError handler.
-        // If it was an error, we schedule a fetch.
-        _serverInfoFuture!.then((_) {
-          // It completed successfully, no immediate need to re-fetch unless other conditions dictate.
-        }).catchError((error) {
-          // It previously completed with an error.
-          // Check if the error was due to "Not connected" to avoid loop if connection is flapping.
-          // However, since we are in the bankFacade.isConnected == true block,
-          // any previous error likely means we should retry.
+        _serverInfoFuture!.then((_) {}).catchError((error) {
           if (mounted) {
             logger.d(
                 "ServerManagementScreen: Retrying fetch because previous future had an error and now connected.");
-            // Set needsFetch to true, and it will be handled by addPostFrameCallback
             needsFetch = true;
           }
-          // It's important to return a value or rethrow in catchError
-          // if not transforming the error. Here, we're just checking.
-          // For this check, we don't need to return a specific ServerInfo.
         });
       }
-    } else { // Not connected
-      // If disconnected, and the future is either null or *not* already an error
-      // future specifically stating "Not connected", then update it.
+    } else { 
       bool isAlreadyDisconnectedError = false;
       _serverInfoFuture?.then((_) {}).catchError((e) {
         if (e is Exception && e.toString().contains("Not connected")) {
@@ -81,14 +199,9 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
       });
 
       if (_serverInfoFuture == null || !isAlreadyDisconnectedError) {
-        // If future is null OR it's not the specific "Not connected" error,
-        // set it to the "Not connected" error.
-        // This ensures the UI shows the correct error when disconnected.
         if (mounted) {
-          // Schedule this setState to avoid issues during build phase.
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted &&
-                !bankFacade.isConnected) { // Re-check connection status
+            if (mounted && !bankFacade.isConnected) { 
               logger.d(
                   "ServerManagementScreen: Setting future to error because not connected.");
               setState(() {
@@ -103,16 +216,14 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
 
     if (needsFetch && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted &&
-            bankFacade.isConnected) { // Re-check if still mounted and connected
+        if (mounted && bankFacade.isConnected) { 
           logger.d(
               "ServerManagementScreen: Connection established or future was null/error, fetching server info.");
-          _fetchServerInfo(); // This calls setState internally
+          _fetchServerInfo();
         }
       });
     }
 
-    // ... rest of the Scaffold and UI remains the same
     return Scaffold(
       appBar: AppBar(
         title: const Text('Server Management'),
@@ -121,6 +232,7 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
         padding: const EdgeInsets.all(16.0),
         child: ListView(
           children: <Widget>[
+            // Server Connection Card (existing)
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -132,15 +244,11 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
                   children: [
                     Text(
                       'Server Connection',
-                      style: Theme
-                          .of(context)
+                      style: Theme.of(context)
                           .textTheme
                           .titleLarge
                           ?.copyWith(
-                          color: Theme
-                              .of(context)
-                              .colorScheme
-                              .primary),
+                              color: Theme.of(context).colorScheme.primary),
                     ),
                     const Divider(height: 20),
                     ListTile(
@@ -150,10 +258,7 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
                             : Icons.cloud_off_outlined,
                         color: bankFacade.isConnected
                             ? Colors.green.shade700
-                            : Theme
-                            .of(context)
-                            .colorScheme
-                            .error,
+                            : Theme.of(context).colorScheme.error,
                         size: 30,
                       ),
                       title: Text(
@@ -162,15 +267,10 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
                             fontWeight: FontWeight.bold,
                             color: bankFacade.isConnected
                                 ? Colors.green.shade700
-                                : Theme
-                                .of(context)
-                                .colorScheme
-                                .error),
+                                : Theme.of(context).colorScheme.error),
                       ),
                       subtitle: Text(
-                          'Target: ${bankFacade.currentServerConfig
-                              .name} (${bankFacade.currentServerConfig
-                              .address})'),
+                          'Target: ${bankFacade.currentServerConfig.name} (${bankFacade.currentServerConfig.address})'),
                     ),
                     if (bankFacade.isConnected && _serverInfoFuture != null)
                       FutureBuilder<ServerInfo>(
@@ -182,10 +282,7 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
                               padding: const EdgeInsets.only(top: 4.0),
                               child: Text(
                                 'Actual listener: ${snapshot.data!.address}',
-                                style: Theme
-                                    .of(context)
-                                    .textTheme
-                                    .bodySmall,
+                                style: Theme.of(context).textTheme.bodySmall,
                               ),
                             );
                           }
@@ -198,10 +295,7 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
                         child: Text(
                           'Server information cannot be loaded while disconnected.',
                           style: TextStyle(
-                              color: Theme
-                                  .of(context)
-                                  .colorScheme
-                                  .error),
+                              color: Theme.of(context).colorScheme.error),
                         ),
                       ),
                   ],
@@ -209,6 +303,8 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
               ),
             ),
             const SizedBox(height: 20),
+
+            // Server Information Card (existing)
             if (bankFacade.isConnected)
               Card(
                 elevation: 2,
@@ -221,15 +317,11 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
                     children: [
                       Text(
                         'Server Information',
-                        style: Theme
-                            .of(context)
+                        style: Theme.of(context)
                             .textTheme
                             .titleLarge
                             ?.copyWith(
-                            color: Theme
-                                .of(context)
-                                .colorScheme
-                                .primary),
+                                color: Theme.of(context).colorScheme.primary),
                       ),
                       const Divider(height: 20),
                       FutureBuilder<ServerInfo>(
@@ -244,17 +336,14 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
                                 ));
                           } else if (snapshot.hasError) {
                             logger.e(
-                                "Error fetching server info: ${snapshot
-                                    .error}");
+                                "Error fetching server info: ${snapshot.error}");
                             return Center(
                               child: Padding(
                                 padding: const EdgeInsets.all(8.0),
-                                child: Text(
-                                    'Error: ${snapshot.error}',
+                                child: Text('Error: ${snapshot.error}',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                        color: Theme
-                                            .of(context)
+                                        color: Theme.of(context)
                                             .colorScheme
                                             .error)),
                               ),
@@ -289,12 +378,68 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
                 ),
               ),
             const SizedBox(height: 20),
+
+            // Database Operations Card (New)
+            if (isAdminConnected)
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Database Operations',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(
+                                color: Theme.of(context).colorScheme.primary),
+                      ),
+                      const Divider(height: 20),
+                      if (_isExporting)
+                        const Center(child: Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: CircularProgressIndicator(),
+                        ))
+                      else
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.download_for_offline_outlined),
+                          label: const Text('Export Database to JSON'),
+                          onPressed: _handleExportDatabase,
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 48), // Make button wider
+                          ),
+                        ),
+                      const SizedBox(height: 12),
+                      if (_isImporting)
+                        const Center(child: Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: CircularProgressIndicator(),
+                        ))
+                      else
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.upload_file_outlined),
+                          label: const Text('Import Database from JSON'),
+                          onPressed: _handleImportDatabase,
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 48), // Make button wider
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 20),
+             // Refresh Server Info Button - now full width
             ElevatedButton.icon(
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh_outlined),
               label: const Text('Refresh Server Info'),
-              onPressed: bankFacade.isConnected ? _fetchServerInfo : null,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+              onPressed: _fetchServerInfo,
+               style: ElevatedButton.styleFrom(
+                 minimumSize: const Size(double.infinity, 48),
               ),
             ),
           ],
@@ -302,20 +447,16 @@ class _ServerManagementScreenState extends State<ServerManagementScreen> {
       ),
     );
   }
-// _InfoTile widget remains the same
-// class _InfoTile extends StatelessWidget { ... }
 }
 
+// Helper widget for consistent info display (existing)
 class _InfoTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String value;
 
-  const _InfoTile({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
+  const _InfoTile(
+      {required this.icon, required this.title, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -323,31 +464,20 @@ class _InfoTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: Theme
-              .of(context)
-              .colorScheme
-              .primary, size: 24),
-          const SizedBox(width: 16),
+        children: <Widget>[
+          Icon(icon, color: Theme.of(context).colorScheme.secondary, size: 20),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+              children: <Widget>[
                 Text(title,
-                    style: Theme
-                        .of(context)
+                    style: Theme.of(context)
                         .textTheme
-                        .titleSmall
-                        ?.copyWith(
-                        color: Theme
-                            .of(context)
-                            .colorScheme
-                            .onSurfaceVariant)),
+                        .labelLarge
+                        ?.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 2),
-                SelectableText(value, style: Theme
-                    .of(context)
-                    .textTheme
-                    .bodyLarge), // Made value selectable
+                Text(value, style: Theme.of(context).textTheme.bodyMedium),
               ],
             ),
           ),
