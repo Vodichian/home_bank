@@ -39,18 +39,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   void _showUserFormDialog({User? userToEdit}) {
-    // ... (your existing _showUserFormDialog code)
     final isEditing = userToEdit != null;
     final usernameController =
         TextEditingController(text: userToEdit?.username ?? '');
-    final fullNameController = // Added controller for full name
+    final fullNameController =
         TextEditingController(text: userToEdit?.fullName ?? '');
-    final passwordController =
-        TextEditingController(); // Always empty for new user, or for password change UI
-    bool isAdmin = userToEdit?.isAdmin ?? false; // Initial admin status
+    final passwordController = TextEditingController();
+    bool isAdmin = userToEdit?.isAdmin ?? false;
     final formKey = GlobalKey<FormState>();
 
-    // Ensure we have an admin user to perform operations
     final adminUser = _bankFacade.currentUser;
     if (adminUser == null || !adminUser.isAdmin) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -65,11 +62,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
         return StatefulBuilder(
-            // Needed to update checkbox state within the dialog
             builder: (context, setDialogState) {
           return AlertDialog(
             title: Text(isEditing
-                ? 'Edit User: ${userToEdit.username}' // userToEdit is guaranteed to be non-null if isEditing is true
+                ? 'Edit User: ${userToEdit.username}' // userToEdit is guaranteed non-null here
                 : 'Create New User'),
             content: SingleChildScrollView(
               child: Form(
@@ -81,16 +77,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       controller: usernameController,
                       decoration: const InputDecoration(labelText: 'Username'),
                       readOnly: isEditing,
-                      // Typically username is not editable after creation
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Username cannot be empty';
                         }
-                        // Add other username validation if needed (e.g., check for existence if creating)
                         return null;
                       },
                     ),
-                    TextFormField( // Added TextFormField for full name
+                    TextFormField(
                       controller: fullNameController,
                       decoration: const InputDecoration(labelText: 'Full Name'),
                       validator: (value) {
@@ -100,7 +94,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         return null;
                       },
                     ),
-                    if (!isEditing) // Only require password for new users
+                    if (!isEditing)
                       TextFormField(
                         controller: passwordController,
                         decoration:
@@ -111,7 +105,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                             return 'Password cannot be empty for new users';
                           }
                           if (!isEditing && value != null && value.length < 6) {
-                            // Example length
                             return 'Password must be at least 6 characters';
                           }
                           return null;
@@ -131,7 +124,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           value: isAdmin,
                           onChanged: (bool? value) {
                             setDialogState(() {
-                              // Use StatefulBuilder\'s setState
                               isAdmin = value ?? false;
                             });
                           },
@@ -155,18 +147,20 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {
                     try {
+                      bool isSelfUpdate = false;
                       if (isEditing) {
-                        // Update User - This requires a BankFacade.updateUser method
                         final updatedUser = User(
                           userId: userToEdit.userId, // userToEdit is guaranteed non-null
                           username: userToEdit.username, // Username not changed here
                           fullName: fullNameController.text,
                           isAdmin: isAdmin,
-                          // Password is not updated here for existing users for simplicity
                         );
                         await _bankFacade.updateUser(updatedUser);
                         logger.i(
                             "User ${updatedUser.username} updated successfully by ${adminUser.username}.");
+                        
+                        isSelfUpdate = userToEdit.userId == adminUser.userId;
+
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -174,27 +168,28 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                     'User ${updatedUser.username} updated.')),
                           );
                         }
+
+                        if (isSelfUpdate) {
+                           logger.i("Admin updated their own profile. Forcing re-login.");
+                           if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Profile updated. Please log in again to continue.')),
+                            );
+                          }
+                        }
+
                       } else {
-                        // Create User (Step 1: Create basic user)
-                        // _bankFacade.createUser returns the new user's ID (Future<int>)
                         final int newUserId = await _bankFacade.createUser(
                           usernameController.text,
                           passwordController.text,
-                          // authUser: adminUser, // Uncomment if createUser requires adminUser for authorization
                         );
-
-                        // logger.i("User ID ${newUserId} (basic) created by ${adminUser.username}.");
-
-                        // Step 2: Update the user with full name and admin status
                         final User userWithDetails = User(
-                          userId: newUserId, // Use the returned ID
-                          username: usernameController.text, // Use the username from the controller
+                          userId: newUserId,
+                          username: usernameController.text,
                           fullName: fullNameController.text,
                           isAdmin: isAdmin,
                         );
-
                         await _bankFacade.updateUser(userWithDetails);
-
                         logger.i(
                             "User ${userWithDetails.username} created and details updated by ${adminUser.username}.");
                         if (context.mounted) {
@@ -205,11 +200,22 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           );
                         }
                       }
+
+                      // Close dialog before navigation or setState
                       if (context.mounted) {
-                        Navigator.of(dialogContext).pop(); // Close dialog
+                        Navigator.of(dialogContext).pop(); 
                       }
-                      // Refresh the user list or trigger a state update if necessary
-                      setState(() {});
+
+                      if (isSelfUpdate) {
+                        await _bankFacade.logout(); // Ensure this method exists and cleans up session
+                        if (context.mounted) { // mounted check for GoRouter context
+                          GoRouter.of(context).go('/login');
+                        }
+                      } else {
+                        // Refresh the user list for non-self-updates
+                        setState(() {});
+                      }
+
                     } catch (e) {
                       logger
                           .e("Error saving user by ${adminUser.username}: $e");
@@ -218,6 +224,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           SnackBar(content: Text('Error: ${e.toString()}')),
                         );
                       }
+                      // Consider if dialog should remain open on error or be closed.
+                      // if (context.mounted) { Navigator.of(dialogContext).pop(); } 
                     }
                   }
                 },
@@ -230,7 +238,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   void _confirmDeleteUser(User userToDelete) {
-    // ... (your existing _confirmDeleteUser code)
     final adminUser = _bankFacade.currentUser;
     if (adminUser == null || !adminUser.isAdmin) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -267,6 +274,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               child: const Text('Delete'),
               onPressed: () async {
                 try {
+                  // Assuming deleteUser expects userId, adjust if it expects the User object
                   await _bankFacade.deleteUser(userToDelete);
                   logger.i(
                       "User ${userToDelete.username} deleted successfully by ${adminUser.username}.");
@@ -277,8 +285,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               Text('User ${userToDelete.username} deleted.')),
                     );
                   }
-                  // Refresh the user list or trigger a state update
-                  setState(() {});
+                  setState(() {}); // Refresh list
                 } catch (e) {
                   logger.e(
                       "Error deleting user ${userToDelete.username} by ${adminUser.username}: $e");
@@ -291,8 +298,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   }
                 }
                 if (context.mounted) { // mounted check for dialogContext
-                  Navigator.of(dialogContext)
-                      .pop(); // Pop the confirmation dialog
+                  Navigator.of(dialogContext).pop();
                 }
               },
             ),
@@ -304,15 +310,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // This check is important, even with GoRouter guards.
     final currentAdminUser = _bankFacade.currentUser;
     if (currentAdminUser == null || !currentAdminUser.isAdmin) {
-      // This state should ideally not be reached if GoRouter redirect works.
-      // Show an access denied message or navigate away.
       return Scaffold(
         appBar: AppBar(
           title: const Text('Access Denied'),
-          leading: GoRouter.of(context).canPop() // Show back button if possible
+          leading: GoRouter.of(context).canPop()
               ? IconButton(
                   icon: const Icon(Icons.arrow_back),
                   onPressed: () => GoRouter.of(context).pop(),
@@ -331,7 +334,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       );
     }
 
-    // Main content for User Management
     return Scaffold(
       appBar: AppBar(
         title: const Text('User Management'),
@@ -345,7 +347,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             : null, 
       ),
       body: StreamBuilder<List<User>>(
-        stream: _bankFacade.users(), // Use the stream
+        stream: _bankFacade.users(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -366,7 +368,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               final user = users[index];
               return ListTile(
                 title: Text(user.username),
-                subtitle: Text('${user.fullName} (${user.isAdmin ? 'Admin' : 'User'})'), // Display full name, handle null
+                subtitle: Text('${user.fullName} (${user.isAdmin ? 'Admin' : 'User'})'),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
