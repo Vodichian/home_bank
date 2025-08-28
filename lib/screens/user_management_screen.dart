@@ -43,6 +43,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final isEditing = userToEdit != null;
     final usernameController =
         TextEditingController(text: userToEdit?.username ?? '');
+    final fullNameController = // Added controller for full name
+        TextEditingController(text: userToEdit?.fullName ?? '');
     final passwordController =
         TextEditingController(); // Always empty for new user, or for password change UI
     bool isAdmin = userToEdit?.isAdmin ?? false; // Initial admin status
@@ -85,6 +87,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           return 'Username cannot be empty';
                         }
                         // Add other username validation if needed (e.g., check for existence if creating)
+                        return null;
+                      },
+                    ),
+                    TextFormField( // Added TextFormField for full name
+                      controller: fullNameController,
+                      decoration: const InputDecoration(labelText: 'Full Name'),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Full name cannot be empty';
+                        }
                         return null;
                       },
                     ),
@@ -150,6 +162,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           // Keep original ID
                           username: userToEdit.username,
                           // Username not changed here
+                          fullName: fullNameController.text, // Added full name
                           isAdmin: isAdmin,
                           // Password is not updated here for existing users for simplicity
                         );
@@ -353,7 +366,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               final user = users[index];
               return ListTile(
                 title: Text(user.username),
-                subtitle: Text(user.isAdmin ? 'Admin' : 'User'),
+                subtitle: Text('${user.fullName} (${user.isAdmin ? 'Admin' : 'User'})'), // Display full name
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
