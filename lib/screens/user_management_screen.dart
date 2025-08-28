@@ -31,7 +31,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       //   if (mounted && GoRouter.of(context).canPop()) {
       //     GoRouter.of(context).pop();
       //   } else if (mounted) {
-      //     // If it can't pop (e.g., it's the first route), go to a safe place.
+      //     // If it can\'t pop (e.g., it\'s the first route), go to a safe place.
       //     GoRouter.of(context).go('/login');
       //   }
       // });
@@ -69,7 +69,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             builder: (context, setDialogState) {
           return AlertDialog(
             title: Text(isEditing
-                ? 'Edit User: ${userToEdit.username}'
+                ? 'Edit User: ${userToEdit.username}' // userToEdit is guaranteed to be non-null if isEditing is true
                 : 'Create New User'),
             content: SingleChildScrollView(
               child: Form(
@@ -131,7 +131,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           value: isAdmin,
                           onChanged: (bool? value) {
                             setDialogState(() {
-                              // Use StatefulBuilder's setState
+                              // Use StatefulBuilder\'s setState
                               isAdmin = value ?? false;
                             });
                           },
@@ -158,11 +158,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       if (isEditing) {
                         // Update User - This requires a BankFacade.updateUser method
                         final updatedUser = User(
-                          userId: userToEdit.userId,
-                          // Keep original ID
-                          username: userToEdit.username,
-                          // Username not changed here
-                          fullName: fullNameController.text, // Added full name
+                          userId: userToEdit.userId, // userToEdit is guaranteed non-null
+                          username: userToEdit.username, // Username not changed here
+                          fullName: fullNameController.text,
                           isAdmin: isAdmin,
                           // Password is not updated here for existing users for simplicity
                         );
@@ -177,33 +175,46 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           );
                         }
                       } else {
-                        // Create User
-                        // Modify your BankFacade.createUser if it needs an isAdmin flag
-                        // For now, let's assume it might take it or you handle promotion separately.
-                        // This is a placeholder for how you might pass isAdmin.
-                        // You might need to adjust your BankFacade.createUser method.
-                        await _bankFacade.createUser(
+                        // Create User (Step 1: Create basic user)
+                        // _bankFacade.createUser returns the new user's ID (Future<int>)
+                        final int newUserId = await _bankFacade.createUser(
                           usernameController.text,
                           passwordController.text,
-                          // isAdmin: isAdmin, // Pass isAdmin if your createUser method supports it
-                          // authUser: adminUser // If createUser also needs the admin for auth
+                          // authUser: adminUser, // Uncomment if createUser requires adminUser for authorization
                         );
-                        // If createUser doesn't set admin status, you might need a separate call:
-                        // if (isAdmin) { await _bankFacade.promoteToAdmin(newUser, adminUser); }
+
+                        // logger.i("User ID ${newUserId} (basic) created by ${adminUser.username}.");
+
+                        // Step 2: Update the user with full name and admin status
+                        final User userWithDetails = User(
+                          userId: newUserId, // Use the returned ID
+                          username: usernameController.text, // Use the username from the controller
+                          fullName: fullNameController.text,
+                          isAdmin: isAdmin,
+                          // TODO: Ensure all other fields from the User model are correctly handled.
+                          // If 'User' has other properties (e.g., accountBalance, creationDate),
+                          // these should be correctly initialized or handled by 'updateUser'.
+                          // Assuming User constructor handles missing optional fields appropriately or
+                          // updateUser only modifies specified fields (PATCH-like behavior).
+                        );
+
+                        await _bankFacade.updateUser(userWithDetails);
 
                         logger.i(
-                            "User ${usernameController.text} created successfully by ${adminUser.username}.");
+                            "User ${userWithDetails.username} created and details updated by ${adminUser.username}.");
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                                 content: Text(
-                                    'User ${usernameController.text} created.')),
+                                    'User ${userWithDetails.username} created.')),
                           );
                         }
                       }
                       if (context.mounted) {
                         Navigator.of(dialogContext).pop(); // Close dialog
                       }
+                      // Refresh the user list or trigger a state update if necessary
+                      setState(() {});
                     } catch (e) {
                       logger
                           .e("Error saving user by ${adminUser.username}: $e");
@@ -264,31 +275,27 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   await _bankFacade.deleteUser(userToDelete);
                   logger.i(
                       "User ${userToDelete.username} deleted successfully by ${adminUser.username}.");
-                  // Use the dialogContext for the SnackBar if you want it to appear "over" the dialog
-                  // or the main context if the dialog is already popped.
-                  // For simplicity, using the main context here as the dialog will be popped immediately after.
                   if (mounted) {
-                    // Check if the _UserManagementScreenState is still mounted
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                           content:
                               Text('User ${userToDelete.username} deleted.')),
                     );
                   }
+                  // Refresh the user list or trigger a state update
+                  setState(() {});
                 } catch (e) {
                   logger.e(
                       "Error deleting user ${userToDelete.username} by ${adminUser.username}: $e");
                   if (mounted) {
-                    // Check if the _UserManagementScreenState is still mounted
                     ScaffoldMessenger.of(context).showSnackBar(
-                      // Use main context
                       SnackBar(
                           content:
                               Text('Error deleting user: ${e.toString()}')),
                     );
                   }
                 }
-                if (context.mounted) {
+                if (context.mounted) { // mounted check for dialogContext
                   Navigator.of(dialogContext)
                       .pop(); // Pop the confirmation dialog
                 }
@@ -333,8 +340,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('User Management'),
-        // GoRouter automatically adds a back button if it can pop.
-        // If you want to customize it or ensure it's there:
         leading: GoRouter.of(context).canPop()
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
@@ -342,7 +347,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   GoRouter.of(context).pop();
                 },
               )
-            : null, // No back button if it cannot pop (e.g., if it's the initial route)
+            : null, 
       ),
       body: StreamBuilder<List<User>>(
         stream: _bankFacade.users(), // Use the stream
@@ -366,7 +371,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               final user = users[index];
               return ListTile(
                 title: Text(user.username),
-                subtitle: Text('${user.fullName} (${user.isAdmin ? 'Admin' : 'User'})'), // Display full name
+                subtitle: Text('${user.fullName} (${user.isAdmin ? 'Admin' : 'User'})'), // Display full name, handle null
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
