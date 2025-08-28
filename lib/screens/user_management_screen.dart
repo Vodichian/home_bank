@@ -191,11 +191,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           username: usernameController.text, // Use the username from the controller
                           fullName: fullNameController.text,
                           isAdmin: isAdmin,
-                          // TODO: Ensure all other fields from the User model are correctly handled.
-                          // If 'User' has other properties (e.g., accountBalance, creationDate),
-                          // these should be correctly initialized or handled by 'updateUser'.
-                          // Assuming User constructor handles missing optional fields appropriately or
-                          // updateUser only modifies specified fields (PATCH-like behavior).
                         );
 
                         await _bankFacade.updateUser(userWithDetails);
