@@ -492,8 +492,7 @@ class BankFacade extends ChangeNotifier {
     } else if (!_currentUser!.isAdmin) {
       throw AuthenticationError('An admin is required to update a merchant');
     }
-    throw StateError("Not implemented");
-    // await _client.updateMerchant(updatedMerchant, _currentUser!);
+    await _client.saveMerchant(updatedMerchant, _currentUser!);
   }
 
   Future<void> createMerchant(
