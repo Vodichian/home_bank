@@ -110,13 +110,24 @@ class QrScannerDialogPresenter {
                      if (dialogContext.mounted) Navigator.of(dialogContext).pop();
                   }
                 },
-                errorBuilder: (BuildContext context, MobileScannerException error, Widget? child) {
+                errorBuilder: (BuildContext context,
+                    MobileScannerException error) { // Removed Widget? child
                   logger?.e(
-                      'MobileScanner error (presenter): $error',
-                      error: error.errorDetails?.details ?? error,
-                  );                  return Center(child: Padding(
+                    'MobileScanner error (presenter): $error',
+                    error: error.errorDetails?.details ?? error,
+                  );
+                  return Center(
+                    child: Padding(
                       padding: const EdgeInsets.all(8.0),
-                      child: Text('Scanner Error: $error\nPlease ensure camera permissions are granted.', textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                      child: Text(
+                          'Scanner Error: $error\nPlease ensure camera permissions are granted.',
+                          // Consider using error.message for a cleaner error display
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Theme
+                              .of(context)
+                              .colorScheme
+                              .error)
+                      ),
                     ),
                   );
                 },
