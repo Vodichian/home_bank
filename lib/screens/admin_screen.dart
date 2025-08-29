@@ -123,11 +123,12 @@ class AdminDashboardScreen extends StatelessWidget {
                   route: '/admin/transaction-browser',
                   onTapAction: (route) => context.push(route),
                 ),
-                const ManagementCard(
+                ManagementCard(
                   title: 'Investment Oversight',
                   icon: Icons.show_chart_rounded,
                   iconColor: Colors.greenAccent,
-                  route: '',
+                  route: '/admin/investment-oversight', // Updated route
+                  onTapAction: (route) => context.push(route), // Added onTapAction
                 ),
                 ManagementCard(
                   title: 'System Settings',

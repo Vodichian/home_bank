@@ -9,6 +9,7 @@ import 'package:home_bank/screens/home_screen.dart';
 
 // Using your existing InitializingScreen for app loading state
 import 'package:home_bank/screens/initializing_screen.dart';
+import 'package:home_bank/screens/investment_oversight_screen.dart'; // Added import
 import 'package:home_bank/screens/investments_screen.dart';
 import 'package:home_bank/screens/login_screen.dart';
 import 'package:home_bank/screens/merchant_management_screen.dart';
@@ -201,6 +202,12 @@ class _MyAppState extends State<MyApp> {
           name: 'serverManagement',
           builder: (context, state) => const ServerManagementScreen(),
           redirect: _userAuthRedirect, // Any logged-in user can see this
+        ),
+        GoRoute(
+          path: '/admin/investment-oversight', // New route
+          name: 'investmentOversight', // New name
+          builder: (context, state) => const InvestmentOversightScreen(), // New screen
+          redirect: _adminAuthRedirect, // Assuming admin auth is needed
         ),
         ShellRoute(
           builder: (context, state, child) {
