@@ -168,7 +168,7 @@ class _SavingsAccountListItemState extends State<SavingsAccountListItem> {
             Text(
               'Balance: ${_currencyFormat.format(widget.account.balance)}',
               style: TextStyle(
-                color: colorScheme.onSurfaceVariant.withOpacity(0.8),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
               ),
             ),
             Padding(
@@ -177,7 +177,7 @@ class _SavingsAccountListItemState extends State<SavingsAccountListItem> {
                 'Interest Rate: ${_percentFormat.format(widget.account.interestRate)}',
                 style: TextStyle(
                   fontSize: 12,
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                 ),
               ),
             ),
@@ -207,7 +207,7 @@ class _SavingsAccountListItemState extends State<SavingsAccountListItem> {
                   'Interest Accrued: ${_currencyFormat.format(_interestAccrued)}',
                   style: TextStyle(
                     fontSize: 12,
-                    color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                   ),
                 ),
               ),
