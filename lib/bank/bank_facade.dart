@@ -270,6 +270,24 @@ class BankFacade extends ChangeNotifier {
     return _client.listenSavingsAccount(_currentUser!, _currentUser!.userId);
   }
 
+  /// Provides a real-time stream of updates for all [SavingsAccount]s on the server.
+  ///
+  /// This method is intended for admin use.
+  /// The stream emits a new list of [SavingsAccount]s whenever there are changes.
+  ///
+  /// Throws [AuthenticationError] if the current user is not logged in or is not an admin.
+  /// Errors from the underlying client stream are propagated.
+  Stream<List<SavingsAccount>> listenAllSavingsAccounts() {
+    if (_currentUser == null) {
+      throw AuthenticationError('User is not logged in. Cannot listen to all savings accounts.');
+    }
+    if (!_currentUser!.isAdmin) {
+      throw AuthenticationError('User is not an admin. Admin privileges are required to listen to all savings accounts.');
+    }
+    return _client.listenSavingsAccounts(_currentUser!);
+  }
+  
+
   Future<Merchant> getMerchant(int accountNumber) async {
     if (_currentUser == null) {
       throw AuthenticationError('User is not logged in');
