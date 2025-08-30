@@ -34,6 +34,12 @@ class _InvestmentOversightScreenState extends State<InvestmentOversightScreen> {
   bool _isFilterPanelExpanded = false;
   // --- End Filter State Variables ---
 
+  // --- Summary State Variables ---
+  final Map<String, double> _accruedInterestsMap = {};
+  final NumberFormat _currencyFormat =
+      NumberFormat.currency(locale: 'en_US', symbol: '\$');
+  // --- End Summary State Variables ---
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +83,38 @@ class _InvestmentOversightScreenState extends State<InvestmentOversightScreen> {
     }
   }
 
+  void _handleInterestUpdate(String accountId, double? interestValue, {bool calledFromDispose = false}) {
+    if (!mounted) return;
+
+    final bool actuallyChanged;
+    if (interestValue == null) {
+      actuallyChanged = _accruedInterestsMap.remove(accountId) != null;
+    } else {
+      if (_accruedInterestsMap[accountId] != interestValue) {
+        _accruedInterestsMap[accountId] = interestValue;
+        actuallyChanged = true;
+      } else {
+        actuallyChanged = false;
+      }
+    }
+
+    if (actuallyChanged) {
+      if (calledFromDispose) {
+        if (mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {});
+            }
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {});
+        }
+      }
+    }
+  }
+
   List<SavingsAccount> _calculateFilteredAccounts(List<SavingsAccount> accounts) {
     List<SavingsAccount> tempFilteredList = List.from(accounts);
 
@@ -98,10 +136,6 @@ class _InvestmentOversightScreenState extends State<InvestmentOversightScreen> {
         return selectedStatus == AdminStatusFilter.admin ? isAdmin : !isAdmin;
       }).toList();
     }
-    // Log filter application outside of setState, if needed for debugging,
-    // but avoid logging excessively during build phases.
-    // logger.i(
-    //     "InvestmentOversight: Calculated filters. Name: '$searchTerm', AdminStatus: '$selectedStatus'. Found ${tempFilteredList.length} of ${accounts.length} accounts.");
     return tempFilteredList;
   }
 
@@ -125,7 +159,7 @@ class _InvestmentOversightScreenState extends State<InvestmentOversightScreen> {
       children: [
         ExpansionPanel(
           backgroundColor:
-              theme.colorScheme.surfaceContainerHighest.withOpacity(0.9),
+              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
           headerBuilder: (BuildContext context, bool isExpanded) {
             return ListTile(
               title: Text('Filters',
@@ -159,7 +193,6 @@ class _InvestmentOversightScreenState extends State<InvestmentOversightScreen> {
                           )
                         : null,
                   ),
-                  // No onEditingComplete needed if listener handles it, or add setState here too
                   textInputAction: TextInputAction.search,
                 ),
                 const SizedBox(height: 16),
@@ -209,6 +242,62 @@ class _InvestmentOversightScreenState extends State<InvestmentOversightScreen> {
     );
   }
 
+  Widget _buildSummaryWidget(int count, double totalBalance, double totalInterest) {
+    final ThemeData theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      margin: const EdgeInsets.fromLTRB(8.0, 0, 8.0, 8.0), // Add margin to bottom
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Summary of Shown Accounts',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Visible Accounts:', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              Text('$count', style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurfaceVariant)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Total Balance:', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              Text(_currencyFormat.format(totalBalance), style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurfaceVariant)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Total Accrued Interest:', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              Text(_currencyFormat.format(totalInterest), style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurfaceVariant)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
@@ -251,8 +340,6 @@ class _InvestmentOversightScreenState extends State<InvestmentOversightScreen> {
                 
                 if (snapshot.hasData) {
                   _allAccounts = snapshot.data!;
-                   // Log if needed for debugging, but be mindful of build frequency
-                  // logger.d("InvestmentOversightScreen: Stream has new data. ${_allAccounts.length} total accounts.");
                 }
 
                 final List<SavingsAccount> filteredAccounts = _calculateFilteredAccounts(_allAccounts);
@@ -277,14 +364,12 @@ class _InvestmentOversightScreenState extends State<InvestmentOversightScreen> {
                             textAlign: TextAlign.center,
                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
                           ),
-                        ],
+                        ], 
                       ),
                     ),
                   );
                 }
 
-                // This condition covers the case where the stream is done/active but emitted an empty list,
-                // or if it hasn't emitted yet but also isn't waiting or in error.
                 if (_allAccounts.isEmpty && snapshot.connectionState != ConnectionState.waiting && !snapshot.hasError) {
                   return const Center(
                     child: Column(
@@ -307,12 +392,26 @@ class _InvestmentOversightScreenState extends State<InvestmentOversightScreen> {
                       key: ValueKey(account.accountNumber),
                       account: account,
                       bankFacade: _bankFacade,
+                      onInterestUpdated: _handleInterestUpdate,
                     );
                   },
                 );
               },
             ),
           ),
+           // Add the summary widget here
+          if (_allAccounts.isNotEmpty) // Conditionally show summary
+             Builder( // Use Builder to get fresh context for calculations if needed, though direct call is fine
+               builder: (context) { // Not strictly necessary here, but good practice if calculations were complex
+                 final List<SavingsAccount> filteredAccountsForSummary = _calculateFilteredAccounts(_allAccounts);
+                 final int shownAccountCount = filteredAccountsForSummary.length;
+                 final double totalBalanceShown = filteredAccountsForSummary.fold(0.0, (sum, acc) => sum + acc.balance);
+                 final double totalAccruedInterestShown = _accruedInterestsMap.entries
+                  .where((entry) => filteredAccountsForSummary.any((acc) => acc.accountNumber.toString() == entry.key))
+                  .fold(0.0, (sum, entry) => sum + entry.value);
+                return _buildSummaryWidget(shownAccountCount, totalBalanceShown, totalAccruedInterestShown);
+               }
+             ),
         ],
       ),
     );
@@ -322,11 +421,13 @@ class _InvestmentOversightScreenState extends State<InvestmentOversightScreen> {
 class SavingsAccountListItem extends StatefulWidget {
   final SavingsAccount account;
   final BankFacade bankFacade;
+  final void Function(String accountId, double? interestValue, {bool calledFromDispose}) onInterestUpdated;
 
   const SavingsAccountListItem({
     super.key,
     required this.account,
     required this.bankFacade,
+    required this.onInterestUpdated,
   });
 
   @override
@@ -340,7 +441,7 @@ class _SavingsAccountListItemState extends State<SavingsAccountListItem> {
   final NumberFormat _currencyFormat =
       NumberFormat.currency(locale: 'en_US', symbol: '\$');
   final NumberFormat _percentFormat =
-      NumberFormat.percentPattern('en_US'); // For percentage formatting
+      NumberFormat.percentPattern('en_US'); 
 
   @override
   void initState() {
@@ -348,12 +449,21 @@ class _SavingsAccountListItemState extends State<SavingsAccountListItem> {
     _fetchInterest();
   }
 
-   @override
+  @override
   void didUpdateWidget(SavingsAccountListItem oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.account.accountNumber != oldWidget.account.accountNumber) {
-      _fetchInterest(); // Refetch if the account itself changes
+      // Notify that the old account's interest data is no longer relevant for summary from this widget instance
+      widget.onInterestUpdated(oldWidget.account.accountNumber.toString(), null);
+      _fetchInterest(); // Refetch for the new account
     }
+  }
+
+  @override
+  void dispose() {
+    // Notify that this widget's interest contribution should be removed from the summary
+    widget.onInterestUpdated(widget.account.accountNumber.toString(), null, calledFromDispose: true);
+    super.dispose();
   }
 
   Future<void> _fetchInterest() async {
@@ -371,6 +481,7 @@ class _SavingsAccountListItemState extends State<SavingsAccountListItem> {
           _interestAccrued = interest;
           _isLoadingInterest = false;
         });
+        widget.onInterestUpdated(widget.account.accountNumber.toString(), _interestAccrued);
       }
     } catch (e) {
       if (mounted) {
@@ -379,6 +490,7 @@ class _SavingsAccountListItemState extends State<SavingsAccountListItem> {
           _interestError = 'Failed to load interest';
           _isLoadingInterest = false;
         });
+        widget.onInterestUpdated(widget.account.accountNumber.toString(), null);
       }
     }
   }
@@ -419,13 +531,13 @@ class _SavingsAccountListItemState extends State<SavingsAccountListItem> {
               'Username: ${widget.account.owner.username}',
               style: TextStyle(
                 fontSize: 12,
-                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
             ),
             Text(
               'Balance: ${_currencyFormat.format(widget.account.balance)}',
               style: TextStyle(
-                color: colorScheme.onSurfaceVariant.withOpacity(0.8),
+                color: colorScheme.onSurfaceVariant.withValues(alpha:0.8),
               ),
             ),
             Padding(
@@ -434,7 +546,7 @@ class _SavingsAccountListItemState extends State<SavingsAccountListItem> {
                 'Interest Rate: ${_percentFormat.format(widget.account.interestRate)}',
                 style: TextStyle(
                   fontSize: 12,
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha:0.7),
                 ),
               ),
             ),
@@ -464,7 +576,7 @@ class _SavingsAccountListItemState extends State<SavingsAccountListItem> {
                   'Interest Accrued (Total): ${_currencyFormat.format(_interestAccrued)}',
                   style: TextStyle(
                     fontSize: 12,
-                    color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    color: colorScheme.onSurfaceVariant.withValues(alpha:0.7),
                   ),
                 ),
               ),
