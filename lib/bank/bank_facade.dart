@@ -635,4 +635,33 @@ class BankFacade extends ChangeNotifier {
       rethrow; // Propagate the error
     }
   }
+
+  /// Checks for available client updates on the server.
+  ///
+  /// Returns a [Future] that completes with a [ClientUpdateInfo] object if an
+  /// update is available, or `null` if the client is already up-to-date.
+  ///
+  /// Throws a [StateError] if the client is not connected to the server.
+  Future<ClientUpdateInfo?> checkForUpdate() async {
+    // The BankClient's checkForUpdate method already handles the logic
+    // including the connection state check.
+    return await _client.checkForUpdate();
+  }
+
+  /// Downloads the client update package for the specified [version].
+  ///
+  /// The downloaded package is saved to the specified [savePath].
+  ///
+  /// [version] The [Version] of the client package to download.
+  /// [savePath] The local file system path where the downloaded package will be saved.
+  ///
+  /// Returns a [Future] that completes when the download is finished.
+  ///
+  /// Throws a [StateError] if the client is not connected, if the requested
+  /// package is not found on the server, or for other download errors.
+  Future<void> downloadClientPackage(Version version, String savePath) async {
+    // The BankClient's downloadClientPackage method handles all the logic
+    // including connection state check, file operations, and error handling.
+    return await _client.downloadClientPackage(version, savePath);
+  }
 }

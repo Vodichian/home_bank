@@ -9,13 +9,14 @@ import 'package:home_bank/screens/home_screen.dart';
 
 // Using your existing InitializingScreen for app loading state
 import 'package:home_bank/screens/initializing_screen.dart';
-import 'package:home_bank/screens/investment_oversight_screen.dart'; // Added import
+import 'package:home_bank/screens/investment_oversight_screen.dart';
 import 'package:home_bank/screens/investments_screen.dart';
 import 'package:home_bank/screens/login_screen.dart';
 import 'package:home_bank/screens/merchant_management_screen.dart';
 import 'package:home_bank/screens/server_management_screen.dart';
 import 'package:home_bank/screens/server_selection_screen.dart';
 import 'package:home_bank/screens/services_hub_screen.dart';
+import 'package:home_bank/screens/system_settings_screen.dart'; // <-- ADDED IMPORT
 import 'package:home_bank/screens/transaction_approval_screen.dart';
 import 'package:home_bank/screens/transaction_browser_screen.dart';
 import 'package:home_bank/screens/user_management_screen.dart';
@@ -204,10 +205,16 @@ class _MyAppState extends State<MyApp> {
           redirect: _userAuthRedirect, // Any logged-in user can see this
         ),
         GoRoute(
-          path: '/admin/investment-oversight', // New route
-          name: 'investmentOversight', // New name
-          builder: (context, state) => const InvestmentOversightScreen(), // New screen
-          redirect: _adminAuthRedirect, // Assuming admin auth is needed
+          path: '/admin/investment-oversight',
+          name: 'investmentOversight',
+          builder: (context, state) => const InvestmentOversightScreen(),
+          redirect: _adminAuthRedirect,
+        ),
+        GoRoute( // <-- ADDED ROUTE
+          path: '/admin/system-settings',
+          name: 'systemSettings',
+          builder: (context, state) => const SystemSettingsScreen(),
+          redirect: _adminAuthRedirect,
         ),
         ShellRoute(
           builder: (context, state, child) {

@@ -127,15 +127,15 @@ class AdminDashboardScreen extends StatelessWidget {
                   title: 'Investment Oversight',
                   icon: Icons.show_chart_rounded,
                   iconColor: Colors.greenAccent,
-                  route: '/admin/investment-oversight', // Updated route
-                  onTapAction: (route) => context.push(route), // Added onTapAction
+                  route: '/admin/investment-oversight',
+                  onTapAction: (route) => context.push(route),
                 ),
                 ManagementCard(
                   title: 'System Settings',
                   icon: Icons.settings_outlined,
                   iconColor: Colors.blueGrey.shade300,
-                  // A lighter blueGrey for accents
-                  route: '',
+                  route: '/admin/system-settings', // <-- MODIFIED
+                  onTapAction: (route) => context.push(route), // <-- ADDED
                 ),
               ],
             ),
@@ -192,24 +192,20 @@ class ManagementCard extends StatelessWidget {
       // Ensures InkWell respects border radius
       child: InkWell(
         onTap: () {
-          if (onTapAction != null) {
+          if (onTapAction != null && route.isNotEmpty) { // MODIFIED: ensure route is not empty for onTapAction
             onTapAction!(route); // Use the provided action
+          } else if (route.isNotEmpty) { // Fallback if onTapAction is null but route is present
+            context.push(route);
           } else {
-            // Fallback to original behavior if no action is provided
-            if (route.isNotEmpty) {
-              // Default to push for better back navigation from detail screens
-              context.push(route); // <--- ENSURE THIS USES PUSH
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Navigating to $title (Placeholder)'),
-                  duration: const Duration(seconds: 1),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              );
-            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Navigating to $title (Placeholder)'),
+                duration: const Duration(seconds: 1),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            );
           }
         },
         borderRadius: BorderRadius.circular(16),
