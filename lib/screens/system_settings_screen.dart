@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import 'package:bank_server/bank.dart'; // Used for ClientUpdateInfo and Version
+import '../bank/bank_facade.dart';
+import '../utils/globals.dart'; // For logger
 
 class SystemSettingsScreen extends StatefulWidget {
   const SystemSettingsScreen({super.key});
@@ -16,7 +21,6 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   static const String appAuthor = "Richard N. McDonald";
   static const String appCopyright = "© 2025 Richard N. McDonald";
 
-
   @override
   void initState() {
     super.initState();
@@ -27,15 +31,14 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     try {
       final PackageInfo packageInfo = await PackageInfo.fromPlatform();
       setState(() {
-        _appVersion = packageInfo.version;
+        _appVersion = packageInfo.version; // This is a string like "1.2.3"
         _buildNumber = packageInfo.buildNumber;
       });
     } catch (e) {
       setState(() {
         _appVersion = 'Not available';
       });
-      // Consider logging the error to your preferred logging solution
-      // print('Failed to get app version: $e');
+      logger.e('Failed to get app version: $e');
     }
   }
 
@@ -50,11 +53,97 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     }
   }
 
-  void _checkForUpdates() {
-    // Placeholder for actual update check logic
+  bool _isUpdateRequired(String currentVersionStr, Version latestVersionServer) {
+    logger.d(
+        "Comparing current app version string: '$currentVersionStr' with server Version object: ${latestVersionServer.toString()}");
+
+    if (currentVersionStr == 'Loading...' || currentVersionStr == 'Not available') {
+      logger.w("Current app version string is not available for comparison.");
+      return false;
+    }
+
+    List<String> currentPartsStr = currentVersionStr.split('.');
+    // Expecting "M.m.p" or "M.m" from package_info.version. Patch defaults to 0 if not present.
+    if (currentPartsStr.isEmpty) {
+      logger.e(
+          "Current app version string '$currentVersionStr' is empty or invalid.");
+      return false;
+    }
+    
+    try {
+      int currentMajor = int.parse(currentPartsStr[0]);
+      int currentMinor = currentPartsStr.length > 1 ? int.parse(currentPartsStr[1]) : 0;
+      int currentPatch = currentPartsStr.length > 2 ? int.parse(currentPartsStr[2]) : 0;
+
+      if (latestVersionServer.major > currentMajor) return true;
+      if (latestVersionServer.major < currentMajor) return false;
+
+      if (latestVersionServer.minor > currentMinor) return true;
+      if (latestVersionServer.minor < currentMinor) return false;
+
+      if (latestVersionServer.patch > currentPatch) return true;
+      
+      return false; // Same version or current is newer in patch
+
+    } catch (e) {
+      logger.e("Error parsing current app version string '$currentVersionStr': $e");
+      return false; 
+    }
+  }
+
+  Future<void> _checkForUpdates() async {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Update checking not yet implemented.')),
+      const SnackBar(content: Text('Checking for updates...')),
     );
+
+    try {
+      final bankFacade = Provider.of<BankFacade>(context, listen: false);
+      final ClientUpdateInfo? updateInfo = await bankFacade.checkForUpdate();
+
+      if (updateInfo != null) {
+        // Use updateInfo.latestVersion (Version object) and updateInfo.releaseNotes (String)
+        logger.d("Server version info: Latest Version: ${updateInfo.latestVersion.toString()}, Release Notes: ${updateInfo.releaseNotes}");
+
+        final bool updateNeeded = _isUpdateRequired(_appVersion, updateInfo.latestVersion);
+
+        if (updateNeeded) {
+          logger.d("Update required: Yes. Current: $_appVersion, Latest: ${updateInfo.latestVersion.toString()}");
+          if (mounted) {
+            ScaffoldMessenger.of(context).removeCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text(
+                      'Update available: Version ${updateInfo.latestVersion.toString()}')),
+            );
+          }
+        } else {
+          logger.d("Update required: No. Current: $_appVersion, Latest: ${updateInfo.latestVersion.toString()}. You are up-to-date or on a newer version.");
+          if (mounted) {
+            ScaffoldMessenger.of(context).removeCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('You are on the latest version.')),
+            );
+          }
+        }
+      } else {
+        logger.d("No updates available from server."); 
+        if (mounted) {
+          ScaffoldMessenger.of(context).removeCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No updates available.')),
+          );
+        }
+      }
+    } catch (e) {
+      logger.e("Error checking for updates: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error checking for updates: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   @override
