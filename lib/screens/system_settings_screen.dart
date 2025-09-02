@@ -50,6 +50,13 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     }
   }
 
+  void _checkForUpdates() {
+    // Placeholder for actual update check logic
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Update checking not yet implemented.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     String displayVersion = _buildNumber.isNotEmpty ? '$_appVersion (Build: $_buildNumber)' : _appVersion;
@@ -67,6 +74,10 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
               leading: const Icon(Icons.info_outline),
               title: const Text('Application Version'),
               subtitle: Text(displayVersion),
+              trailing: ElevatedButton(
+                onPressed: _checkForUpdates,
+                child: const Text('Check for updates'),
+              ),
               onTap: () {
                 showDialog(
                   context: context,
