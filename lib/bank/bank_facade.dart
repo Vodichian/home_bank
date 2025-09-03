@@ -12,6 +12,7 @@ class BankFacade extends ChangeNotifier {
   User? _currentUser;
   ServerConfig _currentServerConfig;
   static const String _lastServerTypeKey = 'last_server_type';
+  bool _hasAttemptedFirstInitialize = false; // Added flag
 
   // Private constructor for internal use with factory
   BankFacade._(this._currentServerConfig);
@@ -39,15 +40,17 @@ class BankFacade extends ChangeNotifier {
 
   bool get isConnected => _client.isConnected;
 
+  bool get hasAttemptedFirstInitialize => _hasAttemptedFirstInitialize; // Added getter
+
   Future<void> initialize() async {
-    if (isConnected) {
-      await _client
-          .disconnect(); // Disconnect if already connected (e.g., after a switch)
-    }
-    _currentUser = null; // Clear user on new connection/re-initialization
-    logger.i(
-        "Attempting to connect to: ${_currentServerConfig.name} (${_currentServerConfig.address})");
     try {
+      if (isConnected) {
+        await _client
+            .disconnect(); // Disconnect if already connected (e.g., after a switch)
+      }
+      _currentUser = null; // Clear user on new connection/re-initialization
+      logger.i(
+          "Attempting to connect to: ${_currentServerConfig.name} (${_currentServerConfig.address})");
       await _client.connect(address: _currentServerConfig.address);
       logger.i("Successfully connected to: ${_currentServerConfig.name}");
       final prefs = await SharedPreferences.getInstance();
@@ -55,8 +58,10 @@ class BankFacade extends ChangeNotifier {
     } catch (e) {
       logger.e("Failed to connect to ${_currentServerConfig.name}: $e");
       rethrow; // Propagate error for UI to handle
+    } finally {
+      _hasAttemptedFirstInitialize = true;
+      notifyListeners(); // Notify about connection state change (and currentUser reset) and first initialize attempt
     }
-    notifyListeners(); // Notify about connection state change (and currentUser reset)
   }
 
   Future<void> switchServer(ServerType serverType) async {
@@ -77,6 +82,7 @@ class BankFacade extends ChangeNotifier {
     _currentServerConfig =
         (serverType == ServerType.live) ? liveServerConfig : testServerConfig;
     _currentUser = null; // Clear user session when switching servers
+    // No need to set _hasAttemptedFirstInitialize here as initialize() will be called
     notifyListeners(); // Notify about config change immediately
 
     await initialize(); // Attempt to connect to the new server
@@ -110,6 +116,9 @@ class BankFacade extends ChangeNotifier {
     _currentUser = null;
     notifyListeners(); // Crucial for GoRouter and UI updates
   }
+
+  /// Checks if the current user is authenticated.
+  bool get isAuthenticated => _currentUser != null;
 
   Future<List<User>> getUsers() {
     if (_currentUser == null) {
@@ -546,7 +555,7 @@ class BankFacade extends ChangeNotifier {
   /// assuming the `BankClient` and server backend support this (by passing a different `ownerUserId`).
   ///
   /// [ownerUserId]: The ID of the user whose interest is being queried. If null,
-  ///                it defaults to the currently logged-in user's ID.
+  ///                it defaults to the currently logged-in user\'s ID.
   /// [startDate]: Optional start date for the interest calculation period.
   /// [endDate]: Optional end date for the interest calculation period.
   ///
@@ -562,7 +571,7 @@ class BankFacade extends ChangeNotifier {
       throw AuthenticationError('User is not logged in.');
     }
 
-    // Default to the current user's ID if ownerUserId is not provided.
+    // Default to the current user\'s ID if ownerUserId is not provided.
     final targetUserId = ownerUserId ?? _currentUser!.userId;
 
     // The BankClient method requires authUser and ownerUserId separately.

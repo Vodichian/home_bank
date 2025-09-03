@@ -31,6 +31,12 @@ import 'models/pending_transaction.dart';
 // Ensure server_definitions.dart is correctly imported if ServerConfig/ServerType is used in UI hints
 import 'config/server_definitions.dart';
 
+// Imports for Update Check
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:bank_server/bank.dart'; // For ClientUpdateInfo
+import '../widgets/update_dialog.dart';
+import '../utils/update_helper.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -66,51 +72,118 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   late GoRouter _router;
   bool _isRouterInitialized = false;
+  bool _updateCheckPerformedAfterLogin = false;
 
   @override
   void initState() {
     super.initState();
-    // 1. Setup GoRouter immediately so MaterialApp.router can use it.
     _setupGoRouter();
-    _isRouterInitialized = true; // Mark as initialized
+    _isRouterInitialized = true; 
 
-    // 2. Start bank initialization. The refreshListenable will handle UI updates.
-    _initializeBank();
+    widget.bankFacade.addListener(_handleBankFacadeChanges);
+    _initializeBankSystem();
   }
 
-  Future<void> _initializeBank() async {
+  @override
+  void dispose() {
+    widget.bankFacade.removeListener(_handleBankFacadeChanges);
+    super.dispose();
+  }
+
+  void _handleBankFacadeChanges() {
+    if (widget.bankFacade.isAuthenticated &&
+        widget.bankFacade.isConnected &&
+        !_updateCheckPerformedAfterLogin) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Ensure context is available from the navigatorKey
+        final navContext = _router.routerDelegate.navigatorKey.currentContext;
+        if (mounted && navContext != null) {
+          _checkForUpdatesOnStartup(navContext);
+          _updateCheckPerformedAfterLogin = true;
+        }
+      });
+    } else if (!widget.bankFacade.isAuthenticated) {
+      // Reset if user logs out
+      _updateCheckPerformedAfterLogin = false;
+    }
+    // No need to explicitly call setState unless UI depends directly on _updateCheckPerformedAfterLogin
+  }
+
+  Future<void> _initializeBankSystem() async {
     try {
       logger.i("MyApp: Attempting BankFacade.initialize()...");
       await widget.bankFacade.initialize();
       logger.i("MyApp: BankFacade.initialize() completed.");
-      // No need to setState here directly for router readiness,
-      // BankFacade will notifyListeners, and GoRouter's refreshListenable will act.
+      // Update check is now handled by _handleBankFacadeChanges listener
     } catch (e) {
       logger.e("MyApp: BankFacade.initialize() failed: $e");
       // BankFacade should notifyListeners, causing GoRouter to redirect to /connect_error
     }
-    // No finally block needed here to set _isRouterInitialized for router itself.
+  }
+
+  Future<void> _checkForUpdatesOnStartup(BuildContext dialogContext) async {
+    // No need to check mounted here as it's checked by the caller in addPostFrameCallback
+    try {
+      final PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      final String currentAppVersion = packageInfo.version;
+      
+      final ClientUpdateInfo? updateInfo = await widget.bankFacade.checkForUpdate();
+
+      if (updateInfo != null) {
+        logger.d("Startup Update Check: Server version info: Latest Version: ${updateInfo.latestVersion.toString()}, Release Notes: ${updateInfo.releaseNotes}");
+        final bool updateNeeded = UpdateHelper.isUpdateRequired(currentAppVersion, updateInfo.latestVersion);
+
+        if (updateNeeded) {
+          logger.d("Startup Update Check: Update required. Current: $currentAppVersion, Latest: ${updateInfo.latestVersion.toString()}");
+          // Ensure context is still valid for showDialog
+          if (dialogContext.mounted) {
+            showDialog(
+              context: dialogContext, // Use the navigator's context
+              builder: (BuildContext context) { // This context is from showDialog builder
+                return UpdateDialog(
+                  updateInfo: updateInfo,
+                  onDownload: () {
+                    // TODO: Implement actual download logic
+                    logger.i("Startup Update Check: Download button pressed for version ${updateInfo.latestVersion.toString()}");
+                    Navigator.of(context).pop(); // Close dialog after initiating download
+                    ScaffoldMessenger.of(dialogContext).showSnackBar( // Use the navigator's context for ScaffoldMessenger
+                      SnackBar(content: Text('Downloading update ${updateInfo.latestVersion.toString()}...')),
+                    );
+                  },
+                );
+              },
+            );
+          }
+        } else {
+          logger.d("Startup Update Check: No update required. Current: $currentAppVersion, Latest: ${updateInfo.latestVersion.toString()}");
+        }
+      } else {
+        logger.d("Startup Update Check: No updates available from server.");
+      }
+    } catch (e) {
+      logger.e("Startup Update Check: Error checking for updates: $e");
+      if (dialogContext.mounted) {
+         ScaffoldMessenger.of(dialogContext).showSnackBar(
+           SnackBar(content: Text('Error checking for updates on startup: ${e.toString()}')),
+         );
+      }
+    }
   }
 
   void _setupGoRouter() {
     _router = GoRouter(
       refreshListenable: widget.bankFacade,
-      // Start at a neutral loading path, redirect will handle logic
       initialLocation: '/app_loading_splash',
       debugLogDiagnostics: true,
-      // Helpful for debugging redirects
       routes: <RouteBase>[
         GoRoute(
             path: '/app_loading_splash',
             builder: (context, state) {
-              // Determine the message based on BankFacade state if needed,
-              // or keep it generic if BankFacade isn't fully ready.
               String message = "Initializing application...";
               if (widget.bankFacade.currentServerConfig.name.isNotEmpty) {
                 message =
                     "Connecting to ${widget.bankFacade.currentServerConfig.name}...";
               }
-              // This InitializingScreen is now built within the GoRouter context
               return InitializingScreen(message: message);
             }),
         GoRoute(
@@ -118,30 +191,26 @@ class _MyAppState extends State<MyApp> {
           builder: (context, state) => const LoginScreen(),
         ),
         GoRoute(
-          path: '/select-server', // New route for server selection
+          path: '/select-server', 
           builder: (context, state) => const ServerSelectionScreen(),
         ),
         GoRoute(
           path: '/connect_error',
           builder: (context, state) {
             final errorDetails = state.extra as Map<String, dynamic>? ?? {};
-            final bank = context.read<BankFacade>(); // Get BankFacade safely
+            final bank = context.read<BankFacade>(); 
 
             return ConnectErrorScreenFramework(
               error: errorDetails['error'],
               serverName:
                   errorDetails['serverName'] ?? bank.currentServerConfig.name,
               onRetry: () async {
-                // context.go('/app_loading_splash'); // Go to loading before trying
-                // The BankFacade.initialize() will notify and router will react
                 try {
                   await bank.initialize();
+                  // Update check will be triggered by _handleBankFacadeChanges if successful
                 } catch (e) {
                   logger.e("Retry from ConnectErrorScreen failed: $e");
                   final currentConfig = bank.currentServerConfig;
-                  // Explicitly go to connect_error if initialize fails again during retry
-                  // because the refreshListenable might not trigger a new navigation
-                  // if the state (e.g. isConnected=false) doesn't "change" from its perspective.
                   if (context.mounted) {
                     context.go('/connect_error',
                         extra: {'error': e, 'serverName': currentConfig.name});
@@ -150,10 +219,10 @@ class _MyAppState extends State<MyApp> {
               },
               onSwitchServer: (ServerType targetType) async {
                 final bankSwitch =
-                    context.read<BankFacade>(); // Use a different var name
-                // context.go('/app_loading_splash'); // Go to loading before trying
+                    context.read<BankFacade>(); 
                 try {
                   await bankSwitch.switchServer(targetType);
+                  // Update check will be triggered by _handleBankFacadeChanges if successful
                 } catch (e) {
                   logger.e("SwitchServer from ConnectErrorScreen failed: $e");
                   final currentConfig = bankSwitch.currentServerConfig;
@@ -196,13 +265,13 @@ class _MyAppState extends State<MyApp> {
           path: '/admin/transaction-browser',
           name: 'transactionBrowser',
           builder: (context, state) => const TransactionBrowserScreen(),
-          redirect: _userAuthRedirect, // Any logged-in user can see this
+          redirect: _userAuthRedirect, 
         ),
         GoRoute(
           path: '/admin/server-management',
           name: 'serverManagement',
           builder: (context, state) => const ServerManagementScreen(),
-          redirect: _userAuthRedirect, // Any logged-in user can see this
+          redirect: _userAuthRedirect, 
         ),
         GoRoute(
           path: '/admin/investment-oversight',
@@ -210,7 +279,7 @@ class _MyAppState extends State<MyApp> {
           builder: (context, state) => const InvestmentOversightScreen(),
           redirect: _adminAuthRedirect,
         ),
-        GoRoute( // <-- ADDED ROUTE
+        GoRoute( 
           path: '/admin/system-settings',
           name: 'systemSettings',
           builder: (context, state) => const SystemSettingsScreen(),
@@ -219,7 +288,7 @@ class _MyAppState extends State<MyApp> {
         ShellRoute(
           builder: (context, state, child) {
             final childRouteLocation = state
-                .matchedLocation; // This should be the location of the *child*
+                .matchedLocation; 
             logger.d(
                 "ShellRoute builder: matchedLocation for child is '$childRouteLocation'");
 
@@ -245,7 +314,6 @@ class _MyAppState extends State<MyApp> {
             ),
             GoRoute(
               path: '/createUser',
-              // This route is now a child of the ShellRoute
               pageBuilder: (context, state) =>
                   const NoTransitionPage(child: CreateUserScreen()),
             ),
@@ -264,17 +332,13 @@ class _MyAppState extends State<MyApp> {
               pageBuilder: (context, state) =>
                   const NoTransitionPage(child: AdminDashboardScreen()),
             ),
-            // The routes '/initializing' and '/connect_error' from your original ShellRoute
-            // are now handled as top-level routes for clarity, especially for app startup.
-            // If you need specific versions of these within the shell that hide/show nav bar differently,
-            // they would need unique paths (e.g., '/shell/initializing').
           ],
         ),
       ],
       redirect: (BuildContext context, GoRouterState state) {
         final bank = widget.bankFacade;
         final bool isConnected = bank.isConnected;
-        final bool isLoggedIn = bank.currentUser != null;
+        final bool isLoggedIn = bank.isAuthenticated; // Use isAuthenticated
         final String currentLocation = state.matchedLocation;
         logger.d(
             "Redirect check: Current location '$currentLocation', isConnected: $isConnected, isLoggedIn: $isLoggedIn");
@@ -286,63 +350,40 @@ class _MyAppState extends State<MyApp> {
         final bool onLoginScreen = currentLocation == '/login';
         final bool onSelectServerScreen = currentLocation == '/select-server';
         final bool onCreateUserScreen = currentLocation == '/createUser';
-
-        // 1. If trying to switch server, let it proceed to the /select-server screen.
-        //    Or, if already on /select-server, don't redirect away from it prematurely.
+        
         if (onSelectServerScreen) {
           logger.d("Redirect: On select-server screen, no redirection.");
           return null;
         }
 
-        // If BankFacade is still doing its very first initialization, stay on splash.
-        // You might need an `isInitializing` flag in BankFacade, set true at start of initialize()
-        // and false at the end, then notifyListeners.
-        // For simplicity now, we'll rely on isConnected and the splash screen's purpose.
-
-        // If we are on the loading splash, and the bank is NOT yet connected, let it stay.
-        // This handles the initial startup where bank.initialize() is running.
-        if (onAppLoadingSplash && !isConnected) {
-          logger.d(
-              "Redirect: On app_loading_splash, initial connection attempt pending, no redirect.");
-          return null;
+        if (onAppLoadingSplash && !bank.hasAttemptedFirstInitialize) { // Use new flag
+           logger.d("Redirect: On app_loading_splash, initial connection attempt pending, no redirect.");
+           return null;
         }
-        // if (onAppLoadingSplash && !isConnected && !bank.hasAttemptedFirstConnection) {
-        //   logger.d("Redirect: On app_loading_splash, initial connection attempt pending, no redirect.");
-        //   return null;
-        // }
 
-        // 1. Handle not connected:
-        //    If not connected, and not already on a screen that handles connection errors
-        //    or the initial loading splash, redirect to connection error.
         if (!isConnected &&
             !onAppLoadingSplash &&
             !onConnectionErrorScreen &&
             !onSelectServerScreen) {
           logger.i(
               "Redirect: Not connected. Redirecting to /connect_error from $currentLocation.");
-          return '/connect_error'; // Consider passing extra: {'serverName': currentConfig.name} if needed by ConnectErrorScreenFramework
+          return '/connect_error'; 
         }
 
-        // If connected:
         if (isConnected) {
-          // If was on splash screen (e.g., after successful connection or server switch), proceed to login/home
           if (onAppLoadingSplash) {
             logger.i(
                 "Redirect: Connected, was on app_loading_splash. Redirecting to ${isLoggedIn ? '/home' : '/login'}.");
             return isLoggedIn ? '/home' : '/login';
           }
 
-          // If connected but not logged in, and NOT on login OR createUser, go to login.
           if (!isLoggedIn && !onLoginScreen && !onCreateUserScreen) {
-            // MODIFIED HERE
             logger.i(
                 "Redirect: Connected, not logged in, not on login or createUser. Redirecting to /login from $currentLocation.");
             return '/login';
           }
 
-          // If logged in but somehow on the login OR createUser screen, redirect to home.
           if (isLoggedIn && (onLoginScreen || onCreateUserScreen)) {
-            // MODIFIED HERE
             logger.i(
                 "Redirect: Logged in, but on login or createUser screen. Redirecting to /home.");
             return '/home';
@@ -350,7 +391,7 @@ class _MyAppState extends State<MyApp> {
         }
 
         logger.d("Redirect: No redirection needed for $currentLocation.");
-        return null; // No redirection needed
+        return null; 
       },
     );
   }
@@ -358,9 +399,9 @@ class _MyAppState extends State<MyApp> {
   String? _adminAuthRedirect(BuildContext context, GoRouterState state) {
     final bank = widget.bankFacade;
     if (!bank.isConnected) {
-      return '/connect_error'; // Should be handled by global redirect too
+      return '/connect_error'; 
     }
-    if (bank.currentUser == null) return '/login';
+    if (!bank.isAuthenticated) return '/login'; // Use isAuthenticated
     if (!bank.currentUser!.isAdmin) {
       logger.w(
           "AdminAuthRedirect: Non-admin access to ${state.matchedLocation}. Redirecting to /home.");
@@ -372,19 +413,15 @@ class _MyAppState extends State<MyApp> {
   String? _userAuthRedirect(BuildContext context, GoRouterState state) {
     final bank = widget.bankFacade;
     if (!bank.isConnected) {
-      return '/connect_error'; // Should be handled by global redirect too
+      return '/connect_error'; 
     }
-    if (bank.currentUser == null) return '/login';
+    if (!bank.isAuthenticated) return '/login'; // Use isAuthenticated
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    // Show a loading indicator until the BankFacade initialization attempt is complete
-    // and the router is set up.
     if (!_isRouterInitialized) {
-      // Use a consistent loading screen.
-      // The message can be more generic here as GoRouter's initialLocation will show a specific one.
       return MaterialApp(
         home: InitializingScreen(message: "Setting up application..."),
         themeMode: ThemeMode.dark,
@@ -399,11 +436,9 @@ class _MyAppState extends State<MyApp> {
       );
     }
 
-    // Once router is initialized, use MaterialApp.router
     return MaterialApp.router(
       routerConfig: _router,
       title: 'Home Bank',
-      // Your app title
       themeMode: ThemeMode.dark,
       theme: ThemeData(
         primarySwatch: Colors.red,
@@ -419,11 +454,7 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-// Your MainScreen, InitializingScreen, ConnectErrorScreenFramework widgets
-// (ConnectErrorScreenFramework should be designed to take onRetry, onSwitchServer, error, serverName)
-
 class MainScreen extends StatefulWidget {
-  // Keep MainScreen as is
   final Widget child;
   final bool showBottomNavigationBar;
 
@@ -442,12 +473,10 @@ class _MainScreenState extends State<MainScreen> {
     if (location.startsWith('/services')) return 2;
     if (location.startsWith('/profile')) return 3;
     if (location.startsWith('/bank_admin')) return 4;
-    // Fallback or more specific logic for sub-routes if needed
     return 0;
   }
 
   void _onItemTapped(int index, BuildContext context) {
-    // Pass context
     switch (index) {
       case 0:
         context.go('/home');
@@ -469,12 +498,11 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bankFacade = Provider.of<BankFacade>(context); // For potential use
+    final bankFacade = Provider.of<BankFacade>(context); 
     int currentTabIndex = _calculateSelectedIndex(context);
 
-    // Conditionally show admin tab based on user role AND if connected
     bool isAdmin =
-        bankFacade.isConnected && bankFacade.currentUser?.isAdmin == true;
+        bankFacade.isConnected && bankFacade.isAuthenticated && bankFacade.currentUser?.isAdmin == true; // check isAuthenticated
 
     List<BottomNavigationBarItem> navBarItems = [
       const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
@@ -489,12 +517,8 @@ class _MainScreenState extends State<MainScreen> {
       navBarItems.add(const BottomNavigationBarItem(
           icon: Icon(Icons.admin_panel_settings), label: 'Bank Admin'));
     } else {
-      // If current index is for admin tab but user is not admin, reset to home.
-      // This can happen if user logs out from admin account or switches to non-admin.
       if (currentTabIndex == 4) {
         currentTabIndex = 0;
-        // Consider context.go('/home') here if just changing index isn't enough
-        // but that might be too aggressive during build.
       }
     }
 
@@ -502,25 +526,24 @@ class _MainScreenState extends State<MainScreen> {
       body: widget.child,
       bottomNavigationBar: widget.showBottomNavigationBar &&
               bankFacade.isConnected &&
-              bankFacade.currentUser != null
+              bankFacade.isAuthenticated // Check isAuthenticated
           ? BottomNavigationBar(
               currentIndex: currentTabIndex,
-              onTap: (index) => _onItemTapped(index, context), // Pass context
+              onTap: (index) => _onItemTapped(index, context), 
               items: navBarItems,
               type: BottomNavigationBarType
-                  .fixed, // Ensures all labels are visible if space allows
+                  .fixed, 
             )
           : null,
     );
   }
 }
 
-// Ensure you have a ConnectErrorScreenFramework widget. Example skeleton:
 class ConnectErrorScreenFramework extends StatelessWidget {
   final Object? error;
   final String serverName;
   final VoidCallback onRetry;
-  final Function(ServerType) onSwitchServer; // Callback for switching
+  final Function(ServerType) onSwitchServer; 
 
   const ConnectErrorScreenFramework({
     super.key,
@@ -579,7 +602,6 @@ class ConnectErrorScreenFramework extends StatelessWidget {
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
               ),
               const SizedBox(height: 40),
-              // Optional: Display current server details from BankFacade if needed
               Text(
                   "Current attempting: ${bankFacade.currentServerConfig.name} (${bankFacade.currentServerConfig.address})",
                   style: Theme.of(context).textTheme.bodySmall),
