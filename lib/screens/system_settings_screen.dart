@@ -57,8 +57,9 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
 
   Future<void> _checkForUpdates() async {
     if (!mounted) return;
-    // Show a brief message that we are checking for updates
-    ScaffoldMessenger.of(context).showSnackBar(
+    final scaffoldMessenger = ScaffoldMessenger.of(context); // Capture for use across async gaps
+
+    scaffoldMessenger.showSnackBar(
       const SnackBar(content: Text('Checking for updates...'), duration: Duration(seconds: 2)),
     );
 
@@ -66,8 +67,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
       final bankFacade = Provider.of<BankFacade>(context, listen: false);
       final ClientUpdateInfo? updateInfo = await bankFacade.checkForUpdate();
 
-      // Remove the checking for updates SnackBar before showing results
-      if (mounted) ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      if (mounted) scaffoldMessenger.removeCurrentSnackBar();
 
       if (updateInfo != null) {
         logger.d("Server version info: Latest Version: ${updateInfo.latestVersion.toString()}, Release Notes: ${updateInfo.releaseNotes}");
@@ -78,16 +78,10 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
           if (mounted) {
             showDialog(
               context: context,
-              builder: (BuildContext context) {
+              builder: (BuildContext dialogContext) {
                 return UpdateDialog(
                   updateInfo: updateInfo,
-                  onDownload: () {
-                    // TODO: Implement actual download logic
-                    logger.i("Download button pressed for version ${updateInfo.latestVersion.toString()}");
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Downloading update ${updateInfo.latestVersion.toString()}...')),
-                    );
-                  },
+                  // onDownload callback is no longer needed here as UpdateDialog handles it internally
                 );
               },
             );
@@ -95,7 +89,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
         } else {
           logger.d("Update required: No. Current: $_appVersion, Latest: ${updateInfo.latestVersion.toString()}");
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            scaffoldMessenger.showSnackBar(
               const SnackBar(content: Text('You are on the latest version.')),
             );
           }
@@ -103,7 +97,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
       } else {
         logger.d("No updates available from server."); 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          scaffoldMessenger.showSnackBar(
             const SnackBar(content: Text('No updates available.')),
           );
         }
@@ -111,8 +105,8 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     } catch (e) {
       logger.e("Error checking for updates: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).removeCurrentSnackBar(); // Ensure checking SnackBar is removed
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.removeCurrentSnackBar(); // Ensure checking SnackBar is removed
+        scaffoldMessenger.showSnackBar(
           SnackBar(content: Text('Error checking for updates: ${e.toString()}')),
         );
       }

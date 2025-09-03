@@ -123,6 +123,8 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _checkForUpdatesOnStartup(BuildContext dialogContext) async {
     // No need to check mounted here as it's checked by the caller in addPostFrameCallback
+    final scaffoldMessenger = ScaffoldMessenger.of(dialogContext); // Use dialogContext for ScaffoldMessenger
+
     try {
       final PackageInfo packageInfo = await PackageInfo.fromPlatform();
       final String currentAppVersion = packageInfo.version;
@@ -139,17 +141,10 @@ class _MyAppState extends State<MyApp> {
           if (dialogContext.mounted) {
             showDialog(
               context: dialogContext, // Use the navigator's context
-              builder: (BuildContext context) { // This context is from showDialog builder
+              builder: (BuildContext buildContext) { // This context is from showDialog builder
                 return UpdateDialog(
                   updateInfo: updateInfo,
-                  onDownload: () {
-                    // TODO: Implement actual download logic
-                    logger.i("Startup Update Check: Download button pressed for version ${updateInfo.latestVersion.toString()}");
-                    Navigator.of(context).pop(); // Close dialog after initiating download
-                    ScaffoldMessenger.of(dialogContext).showSnackBar( // Use the navigator's context for ScaffoldMessenger
-                      SnackBar(content: Text('Downloading update ${updateInfo.latestVersion.toString()}...')),
-                    );
-                  },
+                  // onDownload callback is no longer needed here as UpdateDialog handles it internally
                 );
               },
             );
@@ -163,7 +158,7 @@ class _MyAppState extends State<MyApp> {
     } catch (e) {
       logger.e("Startup Update Check: Error checking for updates: $e");
       if (dialogContext.mounted) {
-         ScaffoldMessenger.of(dialogContext).showSnackBar(
+         scaffoldMessenger.showSnackBar(
            SnackBar(content: Text('Error checking for updates on startup: ${e.toString()}')),
          );
       }
