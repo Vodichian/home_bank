@@ -5,7 +5,7 @@ description: "A home banking client application for my children."
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 repository: https://github.com/Vodichian/home_bank
 
-version: 1.29.0+1
+version: 1.29.0+2
 
 environment:
   sdk: '>=3.4.1 <4.0.0'

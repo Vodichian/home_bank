@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart'; // Added import
 import 'package:bank_server/bank.dart'; // For ClientUpdateInfo, Version
 import '../bank/bank_facade.dart';     // For BankFacade
 import '../utils/globals.dart';        // For logger
@@ -14,29 +15,59 @@ class UpdateDialog extends StatelessWidget {
 
   Future<void> _handleDownload(BuildContext dialogContext) async {
     final bankFacade = Provider.of<BankFacade>(dialogContext, listen: false);
-    final scaffoldMessenger = ScaffoldMessenger.of(dialogContext); // Capture for use in async parts
+    // Capture ScaffoldMessenger and NavigatorState before any await calls
+    final scaffoldMessenger = ScaffoldMessenger.of(dialogContext);
+    final navigator = Navigator.of(dialogContext);
 
-    // TODO: Replace "client_update_package.zip" with actual path resolution (e.g., using path_provider).
-    const String savePath = "client_update_package.zip";
-    logger.w("UpdateDialog: Using placeholder savePath for download: $savePath. Replace with platform-specific path.");
+    // 1. Let the user pick a directory
+    String? selectedDirectory;
+    try {
+      selectedDirectory = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Please select a download directory:',
+      );
+    } catch (e) {
+      logger.e("UpdateDialog: Error picking directory: $e");
+      // Check if context is still valid before showing SnackBar
+      // Note: In a StatelessWidget, a direct 'mounted' check isn't available.
+      // Relying on the fact that if an error occurs here, the dialog is likely still active.
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Error selecting directory: ${e.toString()}')),
+      );
+      return;
+    }
 
-    // Close the dialog first.
-    Navigator.of(dialogContext).pop();
+    if (selectedDirectory == null) {
+      // User canceled the picker
+      logger.i("UpdateDialog: User cancelled directory selection.");
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('Download cancelled: No directory selected.')),
+      );
+      return;
+    }
+
+    // 2. Construct the default file name
+    final version = updateInfo.latestVersion;
+    final String defaultFileName = 'home_bank_update_v${version.major}.${version.minor}.${version.patch}.zip';
+
+    // 3. Combine directory and filename
+    final String savePath = '$selectedDirectory/$defaultFileName';
+    logger.i("UpdateDialog: User selected save path: $savePath");
+
+    // Close the dialog first, using the captured navigator.
+    navigator.pop();
 
     scaffoldMessenger.showSnackBar(
-      SnackBar(content: Text('Downloading update ${updateInfo.latestVersion.toString()}...')),
+      SnackBar(content: Text('Downloading update ${updateInfo.latestVersion.toString()} to $savePath...')),
     );
 
     try {
       await bankFacade.downloadClientPackage(updateInfo.latestVersion, savePath);
       scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('Download complete. TODO: Trigger installation.')),
+        SnackBar(content: Text('Download complete to $savePath. TODO: Trigger installation.')),
       );
-      // TODO: Add logic here to trigger the installation of the downloaded package.
-      // This is platform-specific and might involve another package or platform channels.
-      logger.i("UpdateDialog: Download complete for ${updateInfo.latestVersion}. Path: $savePath. Installation trigger needed.");
+      logger.i("UpdateDialog: Download complete for ${updateInfo.latestVersion}. Path: $savePath.");
     } catch (e) {
-      logger.e("UpdateDialog: Download failed for version ${updateInfo.latestVersion}: $e");
+      logger.e("UpdateDialog: Download failed for version ${updateInfo.latestVersion} to $savePath: $e");
       scaffoldMessenger.showSnackBar(
         SnackBar(content: Text('Download failed: ${e.toString()}')),
       );
