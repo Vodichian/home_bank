@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart'; // Added import
 import 'package:bank_server/bank.dart'; // For ClientUpdateInfo, Version
 import '../bank/bank_facade.dart';     // For BankFacade
 import '../utils/globals.dart';        // For logger
+import 'dart:io' show Platform;
 
 class UpdateDialog extends StatelessWidget {
   final ClientUpdateInfo updateInfo;
@@ -47,7 +48,24 @@ class UpdateDialog extends StatelessWidget {
 
     // 2. Construct the default file name
     final version = updateInfo.latestVersion;
-    final String defaultFileName = 'home_bank_update_v${version.major}.${version.minor}.${version.patch}.zip';
+
+    String fileSuffix;
+    if (Platform.isWindows) {
+      fileSuffix = '.msix';
+    } else if (Platform.isAndroid) {
+      fileSuffix = '.apk';
+    } else if (Platform.isMacOS) {
+      fileSuffix = '.dmg';
+    } else if (Platform.isLinux) {
+      fileSuffix =
+      '.AppImage'; // Or .tar.gz, .deb, .rpm depending on your Linux target
+    } else {
+      fileSuffix = '.zip'; // Fallback for unknown platforms
+    }
+
+    final String defaultFileName = 'home_bank_${version.major}.${version
+        .minor}.${version.patch}$fileSuffix';
+    logger.i("UpdateDialog: Default file name: $defaultFileName");
 
     // 3. Combine directory and filename
     final String savePath = '$selectedDirectory/$defaultFileName';
@@ -63,7 +81,7 @@ class UpdateDialog extends StatelessWidget {
     try {
       await bankFacade.downloadClientPackage(updateInfo.latestVersion, savePath);
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Download complete to $savePath. TODO: Trigger installation.')),
+        SnackBar(content: Text('Download complete to $savePath.')),
       );
       logger.i("UpdateDialog: Download complete for ${updateInfo.latestVersion}. Path: $savePath.");
     } catch (e) {
