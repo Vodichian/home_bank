@@ -401,17 +401,23 @@ class _InvestmentOversightScreenState extends State<InvestmentOversightScreen> {
           ),
            // Add the summary widget here
           if (_allAccounts.isNotEmpty) // Conditionally show summary
-             Builder( // Use Builder to get fresh context for calculations if needed, though direct call is fine
-               builder: (context) { // Not strictly necessary here, but good practice if calculations were complex
-                 final List<SavingsAccount> filteredAccountsForSummary = _calculateFilteredAccounts(_allAccounts);
-                 final int shownAccountCount = filteredAccountsForSummary.length;
-                 final double totalBalanceShown = filteredAccountsForSummary.fold(0.0, (sum, acc) => sum + acc.balance);
-                 final double totalAccruedInterestShown = _accruedInterestsMap.entries
-                  .where((entry) => filteredAccountsForSummary.any((acc) => acc.accountNumber.toString() == entry.key))
-                  .fold(0.0, (sum, entry) => sum + entry.value);
-                return _buildSummaryWidget(shownAccountCount, totalBalanceShown, totalAccruedInterestShown);
-               }
-             ),
+            SafeArea( // Ensures the summary widget is not obscured by system UI (like the nav bar)
+              top: false, // We only need bottom padding for the navigation bar
+              left: false,
+              right: false,
+              bottom: true, // Apply padding to the bottom
+              child: Builder( 
+                builder: (context) { 
+                  final List<SavingsAccount> filteredAccountsForSummary = _calculateFilteredAccounts(_allAccounts);
+                  final int shownAccountCount = filteredAccountsForSummary.length;
+                  final double totalBalanceShown = filteredAccountsForSummary.fold(0.0, (sum, acc) => sum + acc.balance);
+                  final double totalAccruedInterestShown = _accruedInterestsMap.entries
+                   .where((entry) => filteredAccountsForSummary.any((acc) => acc.accountNumber.toString() == entry.key))
+                   .fold(0.0, (sum, entry) => sum + entry.value);
+                  return _buildSummaryWidget(shownAccountCount, totalBalanceShown, totalAccruedInterestShown);
+                }
+              ),
+            ),
         ],
       ),
     );
