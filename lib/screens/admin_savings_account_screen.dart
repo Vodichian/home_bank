@@ -130,11 +130,13 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
     final account = widget.savingsAccount;
     final dateFormat = DateFormat.yMd().add_jms();
     final currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: '\$');
-    // final theme = Theme.of(context); // Not strictly needed for this iteration
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Savings Account Details'), // Title remains as per your request
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0), // Padding around the content
@@ -148,6 +150,7 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
                 elevation: 2.0,
                 margin: const EdgeInsets.only(bottom: 16.0), // Space below this card
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                color: theme.colorScheme.surfaceContainerHighest, // Card background color
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -174,6 +177,7 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
               Card(
                 elevation: 2.0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                color: theme.colorScheme.surfaceContainerHighest, // Card background color
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -212,6 +216,8 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
                           onPressed: _isLoading ? null : _saveInterestRate,
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            backgroundColor: theme.colorScheme.primary, // Button background
+                            foregroundColor: theme.colorScheme.onPrimary, // Button text/icon
                           ),
                         ),
                       ),
