@@ -128,7 +128,11 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
           children: <Widget>[
             ListTile(
               leading: const Icon(Icons.info_outline),
-              title: const Text('Application Version'),
+              title: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: const Text('Application Version'),
+              ),
               subtitle: Text(displayVersion),
               trailing: ElevatedButton(
                 onPressed: _checkForUpdates,

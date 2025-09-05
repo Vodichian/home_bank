@@ -448,7 +448,9 @@ class _SavingsAccountListItemState extends State<SavingsAccountListItem> {
   final NumberFormat _currencyFormat =
       NumberFormat.currency(locale: 'en_US', symbol: '\$');
   final NumberFormat _percentFormat =
-      NumberFormat.percentPattern('en_US'); 
+      NumberFormat.percentPattern('en_US')
+        ..minimumFractionDigits = 0
+        ..maximumFractionDigits = 2;
 
   @override
   void initState() {
