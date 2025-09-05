@@ -132,35 +132,66 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
     final currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: '\$');
     final theme = Theme.of(context);
 
+    // Determine color and style for Balance
+    Color balanceColor;
+    if (account.balance > 0) {
+      balanceColor = Colors.green;
+    } else if (account.balance < 0) {
+      balanceColor = Colors.red;
+    } else {
+      // Fallback to a neutral color from the theme if balance is zero
+      balanceColor = theme.textTheme.bodyMedium?.color ?? (theme.brightness == Brightness.dark ? Colors.white : Colors.black);
+    }
+    final TextStyle balanceTextStyle = theme.textTheme.bodyMedium!.copyWith(
+      color: balanceColor,
+      fontWeight: FontWeight.bold,
+    );
+
+    // Determine color for Interest Rate Hint Text
+    Color interestRateHintColor;
+    if (_currentInterestRateOnScreen > 0) {
+      interestRateHintColor = Colors.green;
+    } else if (_currentInterestRateOnScreen < 0) {
+      interestRateHintColor = Colors.red;
+    } else {
+      interestRateHintColor = theme.hintColor; // Use theme's hint color for zero
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Savings Account Details'), // Title remains as per your request
+        title: const Text('Savings Account Details'),
         backgroundColor: theme.colorScheme.primary,
         foregroundColor: theme.colorScheme.onPrimary,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0), // Padding around the content
+        padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch, // Make cards stretch
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               // Card for Account Information
               Card(
                 elevation: 2.0,
-                margin: const EdgeInsets.only(bottom: 16.0), // Space below this card
+                margin: const EdgeInsets.only(bottom: 16.0),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-                color: theme.colorScheme.surfaceContainerHighest, // Card background color
+                color: theme.colorScheme.surfaceContainerHighest,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       _buildInfoTile('Nickname:', account.nickname.isNotEmpty ? account.nickname : 'N/A'),
+                      // Owner tile uses internal styling logic
                       _buildInfoTile('Owner:', '${account.owner.fullName} (${account.owner.username})'),
                       _buildInfoTile('Account Number:', account.accountNumber.toString()),
                       _buildInfoTile('Owner Is Admin:', account.owner.isAdmin.toString()),
-                      _buildInfoTile('Balance:', currencyFormat.format(account.balance)),
+                      // Balance tile uses specificValueStyle
+                      _buildInfoTile(
+                        'Balance:',
+                        currencyFormat.format(account.balance),
+                        specificValueStyle: balanceTextStyle,
+                      ),
                       _buildInfoTile('Created:', dateFormat.format(account.created)),
                       _buildInfoTile(
                         'Last Interest Accrued:',
@@ -177,20 +208,22 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
               Card(
                 elevation: 2.0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-                color: theme.colorScheme.surfaceContainerHighest, // Card background color
+                color: theme.colorScheme.surfaceContainerHighest,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start, 
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       TextFormField(
                         controller: _interestRateController,
                         decoration: InputDecoration(
                           labelText: 'Interest Rate (e.g., 0.05 for 5%)',
+                          labelStyle: TextStyle(color: theme.colorScheme.primary), // Label remains primary
                           hintText: 'Current: ${_formatRateString(_currentInterestRateOnScreen)}',
+                          hintStyle: TextStyle(color: interestRateHintColor), // Hint text gets dynamic color
                           border: const OutlineInputBorder(),
-                          suffixIcon: _isLoading 
-                              ? const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(strokeWidth: 2)) 
+                          suffixIcon: _isLoading
+                              ? const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(strokeWidth: 2))
                               : null,
                         ),
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -202,22 +235,20 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
                           if (rate == null) {
                             return 'Invalid number format.';
                           }
-                          if (rate < 0) {
-                            return 'Interest rate cannot be negative.';
-                          }
+                          // Negative rates are allowed, so no specific validation against them here
                           return null;
                         },
                       ),
                       const SizedBox(height: 24),
-                      Center( // Keeping the button centered as per original design
+                      Center(
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.save_alt_outlined),
                           label: const Text('Save Interest Rate'),
                           onPressed: _isLoading ? null : _saveInterestRate,
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            backgroundColor: theme.colorScheme.primary, // Button background
-                            foregroundColor: theme.colorScheme.onPrimary, // Button text/icon
+                            backgroundColor: theme.colorScheme.primary,
+                            foregroundColor: theme.colorScheme.onPrimary,
                           ),
                         ),
                       ),
@@ -232,8 +263,21 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
     );
   }
 
-  Widget _buildInfoTile(String label, String value) {
+  Widget _buildInfoTile(String label, String value, {TextStyle? specificValueStyle}) {
     final theme = Theme.of(context);
+    TextStyle? finalValueStyle;
+
+    if (specificValueStyle != null) {
+      finalValueStyle = specificValueStyle;
+    } else if (label == 'Owner:') {
+      finalValueStyle = theme.textTheme.bodyMedium?.copyWith(
+        color: theme.colorScheme.primary,
+        fontWeight: FontWeight.bold,
+      );
+    } else {
+      finalValueStyle = theme.textTheme.bodyMedium;
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -243,14 +287,14 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
             flex: 2,
             child: Text(
               label,
-              style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600), // Adjusted style
+              style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
           Expanded(
             flex: 3,
             child: Text(
               value,
-              style: theme.textTheme.bodyMedium,
+              style: finalValueStyle,
             ),
           ),
         ],
