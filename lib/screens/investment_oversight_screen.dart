@@ -44,7 +44,7 @@ class _InvestmentOversightScreenState extends State<InvestmentOversightScreen> {
   void initState() {
     super.initState();
     _bankFacade = Provider.of<BankFacade>(context, listen: false);
-    _selectedAdminStatusDisplay = _adminStatusOptions.keys.first; // Default
+    _selectedAdminStatusDisplay = _adminStatusOptions.keys.last; // Default
 
     _nameSearchController.addListener(() {
       if (mounted) {
