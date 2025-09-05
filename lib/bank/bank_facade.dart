@@ -40,7 +40,8 @@ class BankFacade extends ChangeNotifier {
 
   bool get isConnected => _client.isConnected;
 
-  bool get hasAttemptedFirstInitialize => _hasAttemptedFirstInitialize; // Added getter
+  bool get hasAttemptedFirstInitialize =>
+      _hasAttemptedFirstInitialize; // Added getter
 
   Future<void> initialize() async {
     try {
@@ -218,7 +219,8 @@ class BankFacade extends ChangeNotifier {
     return _client.users(_currentUser!).map((userList) {
       // Apply the same filtering logic used in getSelectableUsers
       // This ensures consistency between the initial fetch and subsequent stream updates.
-      logger.d("BankFacade: Stream 'users()' - Raw list count: ${userList.length}");
+      logger.d(
+          "BankFacade: Stream 'users()' - Raw list count: ${userList.length}");
       final filteredList = userList.where((user) {
         // Your conditions for a "selectable" or "non-system" user
         // For example, if 'isSystemAccount' is the flag:
@@ -229,7 +231,8 @@ class BankFacade extends ChangeNotifier {
         // and the UI layer decides if the current user should be filtered out for a specific context.
         // For a transfer screen, filtering the current user in the UI is common.
       }).toList();
-      logger.d("BankFacade: Stream 'users()' - Filtered list count: ${filteredList.length}");
+      logger.d(
+          "BankFacade: Stream 'users()' - Filtered list count: ${filteredList.length}");
       return filteredList;
     }).handleError((error) {
       // Optional: Log errors from the underlying stream
@@ -288,14 +291,15 @@ class BankFacade extends ChangeNotifier {
   /// Errors from the underlying client stream are propagated.
   Stream<List<SavingsAccount>> listenAllSavingsAccounts() {
     if (_currentUser == null) {
-      throw AuthenticationError('User is not logged in. Cannot listen to all savings accounts.');
+      throw AuthenticationError(
+          'User is not logged in. Cannot listen to all savings accounts.');
     }
     if (!_currentUser!.isAdmin) {
-      throw AuthenticationError('User is not an admin. Admin privileges are required to listen to all savings accounts.');
+      throw AuthenticationError(
+          'User is not an admin. Admin privileges are required to listen to all savings accounts.');
     }
     return _client.listenSavingsAccounts(_currentUser!);
   }
-  
 
   Future<Merchant> getMerchant(int accountNumber) async {
     if (_currentUser == null) {
@@ -420,12 +424,13 @@ class BankFacade extends ChangeNotifier {
               "Could not retrieve target user details for transfer. ${e.toString()}");
         }
         return BankTransaction.transfer(
-          sourceUser: initiatingUser, // User sending the funds
-          amount: pendingTx.amount,
-          targetUser: targetUser, // User receiving the funds
-          note: pendingTx.notes,
-          authUser: adminUser
-        );
+            sourceUser: initiatingUser,
+            // User sending the funds
+            amount: pendingTx.amount,
+            targetUser: targetUser,
+            // User receiving the funds
+            note: pendingTx.notes,
+            authUser: adminUser);
 
       case pt.PendingTransactionType.payment:
         if (pendingTx.merchantId == null) {
@@ -446,12 +451,13 @@ class BankFacade extends ChangeNotifier {
               "Could not retrieve merchant details for payment. ${e.toString()}");
         }
         return BankTransaction.payment(
-          sourceUser: initiatingUser, // User making the payment
-          amount: pendingTx.amount,
-          merchant: targetMerchant, // Merchant receiving the payment
-          note: pendingTx.notes,
-          authUser: adminUser
-        );
+            sourceUser: initiatingUser,
+            // User making the payment
+            amount: pendingTx.amount,
+            merchant: targetMerchant,
+            // Merchant receiving the payment
+            note: pendingTx.notes,
+            authUser: adminUser);
     }
   }
 
@@ -479,8 +485,7 @@ class BankFacade extends ChangeNotifier {
 
       // 2. Submit the BankTransaction using BankClient's submit method
       // The submit method returns the transaction ID assigned by the server.
-      int newTransactionId =
-          await _client.submit(bankTransactionToSubmit);
+      int newTransactionId = await _client.submit(bankTransactionToSubmit);
 
       logger.i(
           "BankTransaction submitted successfully. Server assigned ID: $newTransactionId for PendingTx ID: ${pendingTx.id}");
@@ -598,8 +603,8 @@ class BankFacade extends ChangeNotifier {
     }
     // Assuming the _client.exportDatabaseToJson method handles API calls and returns the JSON string
     // or throws an error if the underlying client call fails or returns a fail message.
-    logger.i("BankFacade: User ${_currentUser!
-        .username} is exporting database to JSON.");
+    logger.i(
+        "BankFacade: User ${_currentUser!.username} is exporting database to JSON.");
     try {
       return await _client.exportDatabaseToJson(_currentUser!);
     } catch (e) {
@@ -622,11 +627,11 @@ class BankFacade extends ChangeNotifier {
     }
     // Assuming the _client.importDatabaseFromJson method handles API calls and returns a success boolean
     // or throws an error if the underlying client call fails or returns a fail message.
-    logger.i("BankFacade: User ${_currentUser!
-        .username} is importing database from JSON.");
+    logger.i(
+        "BankFacade: User ${_currentUser!.username} is importing database from JSON.");
     try {
-      final success = await _client.importDatabaseFromJson(
-          _currentUser!, jsonData);
+      final success =
+          await _client.importDatabaseFromJson(_currentUser!, jsonData);
       if (success) {
         logger.i("BankFacade: Database import successful.");
         // Consider if any local state needs to be refreshed or invalidated after import.
@@ -672,5 +677,26 @@ class BankFacade extends ChangeNotifier {
     // The BankClient's downloadClientPackage method handles all the logic
     // including connection state check, file operations, and error handling.
     return await _client.downloadClientPackage(version, savePath);
+  }
+
+  /// Updates the interest rate for a specific savings account on the server.
+  ///
+  /// This operation requires administrative privileges. The authUser must be an admin to perform this action.
+  ///
+  /// accountNumber: The account number of the savings account to update.
+  /// newInterestRate: The new interest rate to set (e.g., 0.05 for 5%).
+  /// Returns a Future that completes with true if the update was successful.
+  ///
+  /// Throws:
+  ///
+  /// AuthenticationError if the authUser is not an admin.
+  /// StateError if the newInterestRate is invalid (e.g., negative or too high), if the account does not exist, or for other server-side failures.
+  Future<bool> updateInterestRate(int accountNumber, double newInterestRate) async {
+    if (_currentUser == null) {
+      throw AuthenticationError('User is not logged in');
+    } else if (!_currentUser!.isAdmin) {
+      throw AuthenticationError('An admin is required to update interest rates');
+    }
+    return await _client.updateInterestRate(_currentUser!, accountNumber, newInterestRate);
   }
 }

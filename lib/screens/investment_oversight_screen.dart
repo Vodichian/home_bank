@@ -1,5 +1,6 @@
 import 'package:bank_server/bank.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:home_bank/bank/bank_facade.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart'; // For currency formatting
@@ -594,13 +595,7 @@ class _SavingsAccountListItemState extends State<SavingsAccountListItem> {
           color: colorScheme.primary,
         ),
         onTap: () {
-          // TODO: Implement navigation to account details screen or other action
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Tapped on account for user ID: ${widget.account.owner.userId}'),
-              duration: const Duration(seconds: 1),
-            ),
-          );
+          context.pushNamed('savingsAccountManagement', extra: widget.account);
         },
       ),
     );

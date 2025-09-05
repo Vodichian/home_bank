@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:home_bank/bank/bank_facade.dart';
 import 'package:home_bank/screens/admin_screen.dart';
+import 'package:home_bank/screens/admin_savings_account_screen.dart'; // <--- ADDED IMPORT
 
 // Make sure you have a ConnectErrorScreen, or create a basic one
 import 'package:home_bank/screens/create_user.dart';
@@ -16,7 +17,7 @@ import 'package:home_bank/screens/merchant_management_screen.dart';
 import 'package:home_bank/screens/server_management_screen.dart';
 import 'package:home_bank/screens/server_selection_screen.dart';
 import 'package:home_bank/screens/services_hub_screen.dart';
-import 'package:home_bank/screens/system_settings_screen.dart'; // <-- ADDED IMPORT
+import 'package:home_bank/screens/system_settings_screen.dart';
 import 'package:home_bank/screens/transaction_approval_screen.dart';
 import 'package:home_bank/screens/transaction_browser_screen.dart';
 import 'package:home_bank/screens/user_management_screen.dart';
@@ -33,7 +34,7 @@ import 'config/server_definitions.dart';
 
 // Imports for Update Check
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:bank_server/bank.dart'; // For ClientUpdateInfo
+import 'package:bank_server/bank.dart'; // For ClientUpdateInfo, SavingsAccount
 import '../widgets/update_dialog.dart';
 import '../utils/update_helper.dart';
 
@@ -78,7 +79,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _setupGoRouter();
-    _isRouterInitialized = true; 
+    _isRouterInitialized = true;
 
     widget.bankFacade.addListener(_handleBankFacadeChanges);
     _initializeBankSystem();
@@ -128,7 +129,7 @@ class _MyAppState extends State<MyApp> {
     try {
       final PackageInfo packageInfo = await PackageInfo.fromPlatform();
       final String currentAppVersion = packageInfo.version;
-      
+
       final ClientUpdateInfo? updateInfo = await widget.bankFacade.checkForUpdate();
 
       if (updateInfo != null) {
@@ -186,14 +187,14 @@ class _MyAppState extends State<MyApp> {
           builder: (context, state) => const LoginScreen(),
         ),
         GoRoute(
-          path: '/select-server', 
+          path: '/select-server',
           builder: (context, state) => const ServerSelectionScreen(),
         ),
         GoRoute(
           path: '/connect_error',
           builder: (context, state) {
             final errorDetails = state.extra as Map<String, dynamic>? ?? {};
-            final bank = context.read<BankFacade>(); 
+            final bank = context.read<BankFacade>();
 
             return ConnectErrorScreenFramework(
               error: errorDetails['error'],
@@ -214,7 +215,7 @@ class _MyAppState extends State<MyApp> {
               },
               onSwitchServer: (ServerType targetType) async {
                 final bankSwitch =
-                    context.read<BankFacade>(); 
+                    context.read<BankFacade>();
                 try {
                   await bankSwitch.switchServer(targetType);
                   // Update check will be triggered by _handleBankFacadeChanges if successful
@@ -260,13 +261,13 @@ class _MyAppState extends State<MyApp> {
           path: '/admin/transaction-browser',
           name: 'transactionBrowser',
           builder: (context, state) => const TransactionBrowserScreen(),
-          redirect: _userAuthRedirect, 
+          redirect: _userAuthRedirect,
         ),
         GoRoute(
           path: '/admin/server-management',
           name: 'serverManagement',
           builder: (context, state) => const ServerManagementScreen(),
-          redirect: _userAuthRedirect, 
+          redirect: _userAuthRedirect,
         ),
         GoRoute(
           path: '/admin/investment-oversight',
@@ -274,7 +275,22 @@ class _MyAppState extends State<MyApp> {
           builder: (context, state) => const InvestmentOversightScreen(),
           redirect: _adminAuthRedirect,
         ),
-        GoRoute( 
+        GoRoute(
+          path: '/admin/savings-account-management',
+          name: 'savingsAccountManagement',
+          builder: (context, state) {
+            final savingsAccount = state.extra as SavingsAccount?;
+            if (savingsAccount == null) {
+              return Scaffold(
+                appBar: AppBar(title: const Text('Error')),
+                body: const Center(child: Text('Savings account details not found. Please go back and try again.')),
+              );
+            }
+            return AdminSavingsAccountScreen(savingsAccount: savingsAccount);
+          },
+          redirect: _adminAuthRedirect,
+        ),
+        GoRoute(
           path: '/admin/system-settings',
           name: 'systemSettings',
           builder: (context, state) => const SystemSettingsScreen(),
@@ -283,7 +299,7 @@ class _MyAppState extends State<MyApp> {
         ShellRoute(
           builder: (context, state, child) {
             final childRouteLocation = state
-                .matchedLocation; 
+                .matchedLocation;
             logger.d(
                 "ShellRoute builder: matchedLocation for child is '$childRouteLocation'");
 
@@ -345,7 +361,7 @@ class _MyAppState extends State<MyApp> {
         final bool onLoginScreen = currentLocation == '/login';
         final bool onSelectServerScreen = currentLocation == '/select-server';
         final bool onCreateUserScreen = currentLocation == '/createUser';
-        
+
         if (onSelectServerScreen) {
           logger.d("Redirect: On select-server screen, no redirection.");
           return null;
@@ -362,7 +378,7 @@ class _MyAppState extends State<MyApp> {
             !onSelectServerScreen) {
           logger.i(
               "Redirect: Not connected. Redirecting to /connect_error from $currentLocation.");
-          return '/connect_error'; 
+          return '/connect_error';
         }
 
         if (isConnected) {
@@ -386,7 +402,7 @@ class _MyAppState extends State<MyApp> {
         }
 
         logger.d("Redirect: No redirection needed for $currentLocation.");
-        return null; 
+        return null;
       },
     );
   }
@@ -394,7 +410,7 @@ class _MyAppState extends State<MyApp> {
   String? _adminAuthRedirect(BuildContext context, GoRouterState state) {
     final bank = widget.bankFacade;
     if (!bank.isConnected) {
-      return '/connect_error'; 
+      return '/connect_error';
     }
     if (!bank.isAuthenticated) return '/login'; // Use isAuthenticated
     if (!bank.currentUser!.isAdmin) {
@@ -408,7 +424,7 @@ class _MyAppState extends State<MyApp> {
   String? _userAuthRedirect(BuildContext context, GoRouterState state) {
     final bank = widget.bankFacade;
     if (!bank.isConnected) {
-      return '/connect_error'; 
+      return '/connect_error';
     }
     if (!bank.isAuthenticated) return '/login'; // Use isAuthenticated
     return null;
@@ -493,7 +509,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bankFacade = Provider.of<BankFacade>(context); 
+    final bankFacade = Provider.of<BankFacade>(context);
     int currentTabIndex = _calculateSelectedIndex(context);
 
     bool isAdmin =
@@ -524,10 +540,10 @@ class _MainScreenState extends State<MainScreen> {
               bankFacade.isAuthenticated // Check isAuthenticated
           ? BottomNavigationBar(
               currentIndex: currentTabIndex,
-              onTap: (index) => _onItemTapped(index, context), 
+              onTap: (index) => _onItemTapped(index, context),
               items: navBarItems,
               type: BottomNavigationBarType
-                  .fixed, 
+                  .fixed,
             )
           : null,
     );
@@ -538,7 +554,7 @@ class ConnectErrorScreenFramework extends StatelessWidget {
   final Object? error;
   final String serverName;
   final VoidCallback onRetry;
-  final Function(ServerType) onSwitchServer; 
+  final Function(ServerType) onSwitchServer;
 
   const ConnectErrorScreenFramework({
     super.key,
