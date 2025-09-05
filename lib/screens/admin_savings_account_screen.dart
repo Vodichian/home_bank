@@ -20,17 +20,19 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
-  // Store the initial rate to compare against, and to reset the controller if needed.
-  // This will also be updated upon successful save.
   late double _currentInterestRateOnScreen;
 
-  // Helper to format the rate string, removing trailing zeros
+  // State for Accrued Interest
+  double? _accruedInterest;
+  bool _isFetchingInterest = true; // Initialize to true
+  String? _fetchInterestError;
+
   String _formatRateString(double rate) {
     String asString = rate.toString();
     if (asString.contains('.')) {
-      asString = asString.replaceAll(RegExp(r'0*$'), ''); // Remove trailing zeros
+      asString = asString.replaceAll(RegExp(r'0*$'), '');
       if (asString.endsWith('.')) {
-        asString = asString.substring(0, asString.length - 1); // Remove trailing decimal point
+        asString = asString.substring(0, asString.length - 1);
       }
     }
     return asString;
@@ -42,6 +44,34 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
     _bankFacade = Provider.of<BankFacade>(context, listen: false);
     _currentInterestRateOnScreen = widget.savingsAccount.interestRate;
     _interestRateController = TextEditingController(text: _formatRateString(_currentInterestRateOnScreen));
+    _fetchAccruedInterest(); // Fetch accrued interest
+  }
+
+  Future<void> _fetchAccruedInterest() async {
+    if (!mounted) return;
+    setState(() {
+      _isFetchingInterest = true;
+      _fetchInterestError = null; 
+    });
+    try {
+      final interest = await _bankFacade.getInterestAccrued(
+        ownerUserId: widget.savingsAccount.owner.userId,
+      );
+      if (mounted) {
+        setState(() {
+          _accruedInterest = interest;
+          _isFetchingInterest = false;
+        });
+      }
+    } catch (e) {
+      logger.e("Error fetching accrued interest for user ${widget.savingsAccount.owner.userId}: $e");
+      if (mounted) {
+        setState(() {
+          _fetchInterestError = "Failed to load interest: ${e.toString()}";
+          _isFetchingInterest = false;
+        });
+      }
+    }
   }
 
   @override
@@ -54,55 +84,37 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-
     final newRateString = _interestRateController.text;
     final newRate = double.tryParse(newRateString);
-
     if (newRate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid interest rate format.')),
       );
       return;
     }
-
-    // Compare with the rate currently displayed/edited, which reflects the latest successful save or initial load
     if (newRate == _currentInterestRateOnScreen) {
        ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Interest rate is unchanged from the current value.')),
       );
       return;
     }
-
     setState(() {
       _isLoading = true;
     });
-
     try {
-      // The method in BankFacade will be named updateInterestRate as per request.
       final success = await _bankFacade.updateInterestRate(
         widget.savingsAccount.accountNumber,
         newRate,
       );
-
-      if (mounted) { // Check if widget is still in the tree
+      if (mounted) {
         if (success) {
-          _currentInterestRateOnScreen = newRate; // Update our reference for the current saved rate
-           // Update controller with potentially formatted new rate
+          _currentInterestRateOnScreen = newRate;
           _interestRateController.text = _formatRateString(newRate);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Interest rate updated successfully!')),
           );
-          // The parent screen (InvestmentOversightScreen) listens to a stream of accounts.
-          // When the BankClient updates the rate on the server, the server should ideally
-          // push an update through the stream _bankFacade.listenAllSavingsAccounts().
-          // This would cause InvestmentOversightScreen to rebuild its list, and if the user
-          // navigates back, they'd see the updated rate there.
-          // If this screen itself needs to reflect that the underlying 'widget.savingsAccount'
-          // from its parent is now "stale" compared to the server, it would require
-          // listening to a stream for this specific account, or re-fetching.
-          // For simplicity, we'll assume the stream on the parent screen will handle eventual consistency.
         } else {
-          _interestRateController.text = _formatRateString(_currentInterestRateOnScreen); // Revert controller to last known good rate
+          _interestRateController.text = _formatRateString(_currentInterestRateOnScreen);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Failed to update interest rate. Server reported failure.')),
           );
@@ -111,7 +123,7 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
     } catch (e) {
       logger.e("Error updating interest rate: $e", error: e);
        if (mounted) {
-        _interestRateController.text = _formatRateString(_currentInterestRateOnScreen); // Revert on error
+        _interestRateController.text = _formatRateString(_currentInterestRateOnScreen);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error updating interest rate: ${e.toString()}')),
         );
@@ -132,14 +144,12 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
     final currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: '\$');
     final theme = Theme.of(context);
 
-    // Determine color and style for Balance
     Color balanceColor;
     if (account.balance > 0) {
       balanceColor = Colors.green;
     } else if (account.balance < 0) {
       balanceColor = Colors.red;
     } else {
-      // Fallback to a neutral color from the theme if balance is zero
       balanceColor = theme.textTheme.bodyMedium?.color ?? (theme.brightness == Brightness.dark ? Colors.white : Colors.black);
     }
     final TextStyle balanceTextStyle = theme.textTheme.bodyMedium!.copyWith(
@@ -147,14 +157,40 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
       fontWeight: FontWeight.bold,
     );
 
-    // Determine color for Interest Rate Hint Text
     Color interestRateHintColor;
     if (_currentInterestRateOnScreen > 0) {
       interestRateHintColor = Colors.green;
     } else if (_currentInterestRateOnScreen < 0) {
       interestRateHintColor = Colors.red;
     } else {
-      interestRateHintColor = theme.hintColor; // Use theme's hint color for zero
+      interestRateHintColor = theme.hintColor;
+    }
+
+    String accruedInterestDisplayValue;
+    TextStyle accruedInterestTextStyle;
+    if (_isFetchingInterest) {
+      accruedInterestDisplayValue = "Calculating...";
+      accruedInterestTextStyle = theme.textTheme.bodyMedium!.copyWith(fontStyle: FontStyle.italic);
+    } else if (_fetchInterestError != null) {
+      accruedInterestDisplayValue = _fetchInterestError!;
+      accruedInterestTextStyle = theme.textTheme.bodyMedium!.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.bold);
+    } else if (_accruedInterest != null) {
+      accruedInterestDisplayValue = currencyFormat.format(_accruedInterest);
+      Color accruedValueColor;
+      if (_accruedInterest! > 0) {
+        accruedValueColor = Colors.green;
+      } else if (_accruedInterest! < 0) {
+        accruedValueColor = Colors.red;
+      } else {
+        accruedValueColor = theme.textTheme.bodyMedium?.color ?? (theme.brightness == Brightness.dark ? Colors.white : Colors.black);
+      }
+      accruedInterestTextStyle = theme.textTheme.bodyMedium!.copyWith(
+        color: accruedValueColor,
+        fontWeight: FontWeight.bold,
+      );
+    } else {
+      accruedInterestDisplayValue = "N/A";
+      accruedInterestTextStyle = theme.textTheme.bodyMedium!;
     }
 
     return Scaffold(
@@ -170,7 +206,6 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              // Card for Account Information
               Card(
                 elevation: 2.0,
                 margin: const EdgeInsets.only(bottom: 16.0),
@@ -182,19 +217,22 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       _buildInfoTile('Nickname:', account.nickname.isNotEmpty ? account.nickname : 'N/A'),
-                      // Owner tile uses internal styling logic
                       _buildInfoTile('Owner:', '${account.owner.fullName} (${account.owner.username})'),
                       _buildInfoTile('Account Number:', account.accountNumber.toString()),
                       _buildInfoTile('Owner Is Admin:', account.owner.isAdmin.toString()),
-                      // Balance tile uses specificValueStyle
                       _buildInfoTile(
                         'Balance:',
                         currencyFormat.format(account.balance),
                         specificValueStyle: balanceTextStyle,
                       ),
+                      _buildInfoTile(
+                        'Total Accrued Interest:',
+                        accruedInterestDisplayValue,
+                        specificValueStyle: accruedInterestTextStyle,
+                      ),
                       _buildInfoTile('Created:', dateFormat.format(account.created)),
                       _buildInfoTile(
-                        'Last Interest Accrued:',
+                        'Last Interest Accrued On:',
                         account.lastInterestAccruedDate != null
                             ? dateFormat.format(account.lastInterestAccruedDate!)
                             : 'N/A',
@@ -203,8 +241,6 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
                   ),
                 ),
               ),
-
-              // Card for Interest Rate Management
               Card(
                 elevation: 2.0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
@@ -218,9 +254,9 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
                         controller: _interestRateController,
                         decoration: InputDecoration(
                           labelText: 'Interest Rate (e.g., 0.05 for 5%)',
-                          labelStyle: TextStyle(color: theme.colorScheme.primary), // Label remains primary
+                          labelStyle: TextStyle(color: theme.colorScheme.primary),
                           hintText: 'Current: ${_formatRateString(_currentInterestRateOnScreen)}',
-                          hintStyle: TextStyle(color: interestRateHintColor), // Hint text gets dynamic color
+                          hintStyle: TextStyle(color: interestRateHintColor),
                           border: const OutlineInputBorder(),
                           suffixIcon: _isLoading
                               ? const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(strokeWidth: 2))
@@ -235,7 +271,6 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
                           if (rate == null) {
                             return 'Invalid number format.';
                           }
-                          // Negative rates are allowed, so no specific validation against them here
                           return null;
                         },
                       ),
@@ -266,7 +301,6 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
   Widget _buildInfoTile(String label, String value, {TextStyle? specificValueStyle}) {
     final theme = Theme.of(context);
     TextStyle? finalValueStyle;
-
     if (specificValueStyle != null) {
       finalValueStyle = specificValueStyle;
     } else if (label == 'Owner:') {
@@ -277,7 +311,6 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
     } else {
       finalValueStyle = theme.textTheme.bodyMedium;
     }
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
