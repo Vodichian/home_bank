@@ -130,63 +130,92 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
     final account = widget.savingsAccount;
     final dateFormat = DateFormat.yMd().add_jms();
     final currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: '\$');
+    // final theme = Theme.of(context); // Not strictly needed for this iteration
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Savings Account Details'),
+        title: const Text('Savings Account Details'), // Title remains as per your request
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0), // Padding around the content
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch, // Make cards stretch
             children: <Widget>[
-              _buildInfoTile('Nickname:', account.nickname.isNotEmpty ? account.nickname : 'N/A'),
-              _buildInfoTile('Owner:', '${account.owner.fullName} (${account.owner.username})'),
-              _buildInfoTile('Account Number:', account.accountNumber.toString()),
-              _buildInfoTile('Owner Is Admin:', account.owner.isAdmin.toString()),
-              _buildInfoTile('Balance:', currencyFormat.format(account.balance)),
-              _buildInfoTile('Created:', dateFormat.format(account.created)),
-              _buildInfoTile(
-                'Last Interest Accrued:',
-                account.lastInterestAccruedDate != null
-                    ? dateFormat.format(account.lastInterestAccruedDate!)
-                    : 'N/A',
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _interestRateController,
-                decoration: InputDecoration(
-                  labelText: 'Interest Rate (e.g., 0.05 for 5%)',
-                  hintText: 'Current: ${_formatRateString(_currentInterestRateOnScreen)}',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: _isLoading ? const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(strokeWidth: 2)) : null,
+              // Card for Account Information
+              Card(
+                elevation: 2.0,
+                margin: const EdgeInsets.only(bottom: 16.0), // Space below this card
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      _buildInfoTile('Nickname:', account.nickname.isNotEmpty ? account.nickname : 'N/A'),
+                      _buildInfoTile('Owner:', '${account.owner.fullName} (${account.owner.username})'),
+                      _buildInfoTile('Account Number:', account.accountNumber.toString()),
+                      _buildInfoTile('Owner Is Admin:', account.owner.isAdmin.toString()),
+                      _buildInfoTile('Balance:', currencyFormat.format(account.balance)),
+                      _buildInfoTile('Created:', dateFormat.format(account.created)),
+                      _buildInfoTile(
+                        'Last Interest Accrued:',
+                        account.lastInterestAccruedDate != null
+                            ? dateFormat.format(account.lastInterestAccruedDate!)
+                            : 'N/A',
+                      ),
+                    ],
+                  ),
                 ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter an interest rate.';
-                  }
-                  final rate = double.tryParse(value);
-                  if (rate == null) {
-                    return 'Invalid number format.';
-                  }
-                  if (rate < 0) {
-                    return 'Interest rate cannot be negative.';
-                  }
-                  // Consider adding a reasonable upper bound if applicable, e.g., rate < 1 (100%)
-                  return null;
-                },
               ),
-              const SizedBox(height: 24),
-              Center(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.save_alt_outlined),
-                  label: const Text('Save Interest Rate'),
-                  onPressed: _isLoading ? null : _saveInterestRate,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+
+              // Card for Interest Rate Management
+              Card(
+                elevation: 2.0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start, 
+                    children: <Widget>[
+                      TextFormField(
+                        controller: _interestRateController,
+                        decoration: InputDecoration(
+                          labelText: 'Interest Rate (e.g., 0.05 for 5%)',
+                          hintText: 'Current: ${_formatRateString(_currentInterestRateOnScreen)}',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: _isLoading 
+                              ? const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(strokeWidth: 2)) 
+                              : null,
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter an interest rate.';
+                          }
+                          final rate = double.tryParse(value);
+                          if (rate == null) {
+                            return 'Invalid number format.';
+                          }
+                          if (rate < 0) {
+                            return 'Interest rate cannot be negative.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      Center( // Keeping the button centered as per original design
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.save_alt_outlined),
+                          label: const Text('Save Interest Rate'),
+                          onPressed: _isLoading ? null : _saveInterestRate,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
