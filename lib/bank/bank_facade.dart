@@ -13,6 +13,7 @@ class BankFacade extends ChangeNotifier {
   ServerConfig _currentServerConfig;
   static const String _lastServerTypeKey = 'last_server_type';
   bool _hasAttemptedFirstInitialize = false; // Added flag
+  final Map<String, double> _conversionRates = {};
 
   // Private constructor for internal use with factory
   BankFacade._(this._currentServerConfig);
@@ -677,6 +678,34 @@ class BankFacade extends ChangeNotifier {
     // The BankClient's downloadClientPackage method handles all the logic
     // including connection state check, file operations, and error handling.
     return await _client.downloadClientPackage(version, savePath);
+  }
+
+  /// Converts an amount from one currency to another.
+  ///
+  /// [fromCurrency] The currency to convert from (e.g., 'USD').
+  /// [toCurrency] The currency to convert to (e.g., 'VND').
+  /// [amount] The amount to convert.
+  ///
+  /// Returns a [Future] that completes with the converted amount.
+  ///
+  /// Throws [StateError] for unsupported conversions or other server-side errors.
+  Future<double> getCurrencyConversion(
+      String fromCurrency, String toCurrency, double amount) async {
+    final key = '$fromCurrency-$toCurrency';
+    if (_conversionRates.containsKey(key)) {
+      return _conversionRates[key]! * amount;
+    }
+
+    final inverseKey = '$toCurrency-$fromCurrency';
+    if (_conversionRates.containsKey(inverseKey)) {
+      return (1 / _conversionRates[inverseKey]!) * amount;
+    }
+
+    final convertedAmount =
+        await _client.getCurrencyConversion(fromCurrency, toCurrency, amount);
+    final rate = convertedAmount / amount;
+    _conversionRates[key] = rate;
+    return convertedAmount;
   }
 
   /// Updates the interest rate for a specific savings account on the server.
