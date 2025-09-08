@@ -4,6 +4,8 @@ import 'package:home_bank/bank/bank_facade.dart';
 import 'package:home_bank/screens/admin_screen.dart';
 import 'package:home_bank/screens/admin_savings_account_screen.dart'; 
 import 'package:home_bank/screens/conversion_calculator_screen.dart'; // Added import
+import 'package:flutter_localizations/flutter_localizations.dart'; // Added for localization
+import 'package:intl/date_symbol_data_local.dart';
 
 // Make sure you have a ConnectErrorScreen, or create a basic one
 import 'package:home_bank/screens/create_user.dart';
@@ -41,6 +43,7 @@ import '../utils/update_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting(null, null);
 
   if (Platform.isWindows) {
     await windowManager.ensureInitialized();
@@ -428,6 +431,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     if (!_isRouterInitialized) {
+      // This fallback MaterialApp is simplified as the router should initialize quickly.
       return MaterialApp(
         home: InitializingScreen(message: "Setting up application..."),
         themeMode: ThemeMode.dark,
@@ -439,6 +443,16 @@ class _MyAppState extends State<MyApp> {
             showUnselectedLabels: false,
           ),
         ),
+         // Localization settings for the fallback (less critical but good practice)
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en', ''), // English, no country code
+          // Add other locales your app supports here, e.g., Locale('es', '') for Spanish
+        ],
       );
     }
 
@@ -447,15 +461,26 @@ class _MyAppState extends State<MyApp> {
       title: 'Home Bank',
       themeMode: ThemeMode.dark,
       theme: ThemeData(
-        primarySwatch: Colors.red,
+        primarySwatch: Colors.red, // Consider using colorSchemeSeed for more modern theming
       ),
       darkTheme: ThemeData.dark().copyWith(
+        // Consider using colorSchemeSeed for dark theme as well for consistency
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
-          selectedItemColor: Colors.yellow,
-          unselectedItemColor: Colors.yellow[300],
+          selectedItemColor: Colors.yellow, // Example: Consider deriving from colorScheme
+          unselectedItemColor: Colors.yellow[300], // Example: Consider deriving from colorScheme
           showUnselectedLabels: false,
         ),
       ),
+      // Localization settings for the main app
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', ''), // English, no country code
+        // Add other locales your app supports here, e.g., Locale('es', '') for Spanish
+      ],
     );
   }
 }

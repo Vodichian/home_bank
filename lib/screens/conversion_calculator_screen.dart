@@ -1,8 +1,100 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:home_bank/bank/bank_facade.dart';
 import 'package:home_bank/utils/globals.dart'; // For logger
-import 'package:intl/intl.dart';
+
+// --- CurrencyInputFormatter CLASS START ---
+class CurrencyInputFormatter extends TextInputFormatter {
+  final NumberFormat _formatter;
+
+  CurrencyInputFormatter({String locale = 'en_US', int decimalDigits = 2})
+      : _formatter = NumberFormat.currency(
+          locale: locale,
+          symbol: '', // No currency symbol in the text field itself
+          decimalDigits: decimalDigits,
+        );
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+
+    String newText = newValue.text.replaceAll(RegExp(r'[^\d.]'), '');
+
+    if (newText.contains('.')) {
+      final parts = newText.split('.');
+      if (parts.length > 2) { // Allow only one decimal point
+        newText = '${parts[0]}.${parts.sublist(1).join()}';
+      }
+      // Limit decimal digits
+      if (parts.length > 1 && parts[1].length > _formatter.maximumFractionDigits) {
+        newText = '${parts[0]}.${parts[1].substring(0, _formatter.maximumFractionDigits)}';
+      }
+    }
+
+    if (newText == '.') {
+      newText = '0.';
+    }
+
+    if (newText.startsWith('0') && newText.length > 1 && newText[1] != '.') {
+      newText = newText.substring(1);
+    }
+
+    String formattedText = newText;
+    String integerPart = newText;
+    String? decimalPart;
+
+    if (newText.contains('.')) {
+      final parts = newText.split('.');
+      integerPart = parts[0];
+      if (parts.length > 1) {
+        decimalPart = parts[1];
+      }
+    }
+
+    if (integerPart.isNotEmpty) {
+      try {
+        final commaFormatter = NumberFormat('#,##0', 'en_US');
+        // Use double.parse for the integer part to ensure comma formatting
+        double numericIntegerPart = double.parse(integerPart.isEmpty ? "0" : integerPart);
+        String tempFormattedInteger = commaFormatter.format(numericIntegerPart);
+        
+        formattedText = tempFormattedInteger;
+
+        if (decimalPart != null) {
+          formattedText += '.$decimalPart';
+        } else if (newText.endsWith('.') && !newText.substring(0, newText.length - 1).contains('.')) {
+          // If the original text ended with a decimal point (and it was the only one)
+          formattedText += '.';
+        }
+      } catch (e) {
+        // Fallback to newText if parsing/formatting fails
+        logger.e("CurrencyInputFormatter error: $e. Input: newText='$newText', integerPart='$integerPart'");
+        formattedText = newText; 
+      }
+    } else if (decimalPart != null) {
+      // This case handles inputs like ".5", which becomes "0.5"
+      formattedText = '0.$decimalPart';
+    }
+
+    // Adjust cursor position
+    int selectionOffset = newValue.selection.baseOffset + (formattedText.length - newValue.text.length);
+    // Ensure selectionOffset is within bounds
+    selectionOffset = selectionOffset.clamp(0, formattedText.length);
+
+    return TextEditingValue(
+      text: formattedText,
+      selection: TextSelection.collapsed(offset: selectionOffset),
+    );
+  }
+}
+// --- CurrencyInputFormatter CLASS END ---
 
 class ConversionCalculatorScreen extends StatefulWidget {
   const ConversionCalculatorScreen({super.key});
@@ -21,7 +113,7 @@ class _ConversionCalculatorScreenState extends State<ConversionCalculatorScreen>
 
   String? _currentRateDisplay;
   bool _isFetchingRate = false;
-  final NumberFormat _rateNumberFormat = NumberFormat('#,##0.####', 'en_US');
+  final NumberFormat _rateNumberFormat = NumberFormat('#,##0.########', 'en_US');
   final NumberFormat _currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: '');
 
   @override
@@ -43,8 +135,8 @@ class _ConversionCalculatorScreenState extends State<ConversionCalculatorScreen>
   }
 
   void _onAmountOrCurrencyChanged() {
-    final amountString = _amountController.text;
-    if (amountString.isEmpty) {
+    final cleanAmountString = _amountController.text.replaceAll(',', '');
+    if (cleanAmountString.isEmpty) {
       if (mounted) {
         setState(() {
           _convertedAmount = null;
@@ -53,7 +145,7 @@ class _ConversionCalculatorScreenState extends State<ConversionCalculatorScreen>
       }
       return;
     }
-    final amount = double.tryParse(amountString);
+    final amount = double.tryParse(cleanAmountString);
     if (amount == null || amount <= 0) {
       if (mounted) {
         setState(() {
@@ -84,10 +176,6 @@ class _ConversionCalculatorScreenState extends State<ConversionCalculatorScreen>
     try {
       final bankFacade = Provider.of<BankFacade>(context, listen: false);
       final rateForOneUnit = await bankFacade.getCurrencyConversion(_fromCurrency, _toCurrency, 1.0);
-      // Assuming getCurrencyConversion throws an error or returns a sentinel value on failure, which is caught below.
-      // The direct check `if (rateForOneUnit != null)` might be redundant if the method guarantees non-null on success.
-      // For robustness, especially if the API contract isn't strict or might change, keeping a check or relying on typed non-nullable return is safer.
-      // Given the previous lint warning, we assume the API returns double directly or throws.
       if (mounted) {
          setState(() {
             _currentRateDisplay = '1 $_fromCurrency = ${_rateNumberFormat.format(rateForOneUnit)} $_toCurrency';
@@ -125,10 +213,10 @@ class _ConversionCalculatorScreenState extends State<ConversionCalculatorScreen>
 
   Future<void> _performConversion() async {
     if (!mounted) return;
-    final amountString = _amountController.text;
-    if (amountString.isEmpty) return; 
+    final cleanAmountString = _amountController.text.replaceAll(',', '');
+    if (cleanAmountString.isEmpty) return; 
 
-    final amount = double.tryParse(amountString);
+    final amount = double.tryParse(cleanAmountString);
     if (amount == null || amount <= 0) return; 
 
     setState(() {
@@ -210,6 +298,7 @@ class _ConversionCalculatorScreenState extends State<ConversionCalculatorScreen>
                 ),
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [CurrencyInputFormatter()], 
             ),
           ),
           const SizedBox(width: 12),
@@ -239,7 +328,7 @@ class _ConversionCalculatorScreenState extends State<ConversionCalculatorScreen>
     String displayAmount = "0.00";
     TextStyle amountStyle = theme.textTheme.headlineMedium!.copyWith(
       fontWeight: FontWeight.bold,
-      color: theme.hintColor.withAlpha(179), // Default for non-converted, non-error state
+      color: theme.hintColor.withAlpha(179), 
     );
 
     if (_isLoadingConversion) {
@@ -249,9 +338,8 @@ class _ConversionCalculatorScreenState extends State<ConversionCalculatorScreen>
       displayAmount = _currencyFormat.format(_convertedAmount);
       amountStyle = amountStyle.copyWith(color: theme.colorScheme.onSurface);
     } else if (_amountController.text.isNotEmpty && _conversionErrorMessage == null) {
-       displayAmount = "0.00"; // Default if input exists but no conversion yet
+       displayAmount = "0.00"; 
     }
-    // If _amountController.text is empty, displayAmount remains "0.00" and color is hintColor.withAlpha(179)
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
