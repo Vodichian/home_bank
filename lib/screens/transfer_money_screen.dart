@@ -444,7 +444,7 @@ class _TransferMoneyScreenState extends State<TransferMoneyScreen> {
             if (_selectedTargetUser != null)
               ListTile(
                 leading: const Icon(Icons.person_pin_circle_outlined, color: Colors.blue),
-                title: Text("Selected: ${_selectedTargetUser!.username}"),
+                title: Text("Selected: ${_selectedTargetUser!.username} (${_selectedTargetUser!.fullName})"),
                 trailing: IconButton(
                   icon: const Icon(Icons.close, color: Colors.red),
                   onPressed: () {
@@ -470,7 +470,7 @@ class _TransferMoneyScreenState extends State<TransferMoneyScreen> {
                     itemBuilder: (context, index) {
                       final user = _filteredUsers[index];
                       return ListTile(
-                        title: Text(user.username),
+                        title: Text('${user.username} (${user.fullName})'),
                         subtitle: Text("User ID: ${user.userId}"),
                         onTap: () {
                           setState(() {
