@@ -567,11 +567,23 @@ class _SavingsAccountListItemState extends State<SavingsAccountListItem> {
                 color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
             ),
-            Text(
-              'Balance: ${_currencyFormat.format(widget.account.balance)}',
-              style: TextStyle(
-                color: colorScheme.onSurfaceVariant.withValues(alpha:0.8),
-              ),
+            Row(
+              children: [
+                Text('Balance: ',
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant.withValues(alpha:0.8),
+                  ),
+                ),
+                Text(
+                  _currencyFormat.format(widget.account.balance),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(
+                    color: Colors.green.shade700,
+                  ),
+                ),
+              ],
             ),
             Padding(
               padding: const EdgeInsets.only(top: 4.0),
