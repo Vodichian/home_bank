@@ -4,6 +4,7 @@ import 'package:home_bank/bank/bank_facade.dart'; // For BankFacade
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart'; // For formatting
 import 'package:home_bank/utils/globals.dart'; // For logger
+import 'package:home_bank/widgets/currency_toggle_widget.dart'; // Import CurrencyToggleWidget
 
 class AdminSavingsAccountScreen extends StatefulWidget {
   final SavingsAccount savingsAccount;
@@ -111,13 +112,13 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
           _currentInterestRateOnScreen = newRate;
           _interestRateController.text = _formatRateString(newRate);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Interest rate updated successfully!')),
-          );
+            const SnackBar(content: Text('Interest rate updated successfully!'))
+          ); // Corrected line
         } else {
           _interestRateController.text = _formatRateString(_currentInterestRateOnScreen);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to update interest rate. Server reported failure.')),
-          );
+            const SnackBar(content: Text('Failed to update interest rate. Server reported failure.'))
+          ); // Corrected line
         }
       }
     } catch (e) {
@@ -125,8 +126,8 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
        if (mounted) {
         _interestRateController.text = _formatRateString(_currentInterestRateOnScreen);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating interest rate: ${e.toString()}')),
-        );
+          SnackBar(content: Text('Error updating interest rate: ${e.toString()}'))
+        ); // Corrected line
       }
     } finally {
       if (mounted) {
@@ -141,7 +142,6 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
   Widget build(BuildContext context) {
     final account = widget.savingsAccount;
     final dateFormat = DateFormat.yMd().add_jms();
-    final currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: '\$');
     final theme = Theme.of(context);
 
     Color balanceColor;
@@ -166,31 +166,27 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
       interestRateHintColor = theme.hintColor;
     }
 
-    String accruedInterestDisplayValue;
-    TextStyle accruedInterestTextStyle;
+    Widget accruedInterestDisplayWidget;
     if (_isFetchingInterest) {
-      accruedInterestDisplayValue = "Calculating...";
-      accruedInterestTextStyle = theme.textTheme.bodyMedium!.copyWith(fontStyle: FontStyle.italic);
+      accruedInterestDisplayWidget = Text(
+        "Calculating...",
+        style: theme.textTheme.bodyMedium!.copyWith(fontStyle: FontStyle.italic),
+      );
     } else if (_fetchInterestError != null) {
-      accruedInterestDisplayValue = _fetchInterestError!;
-      accruedInterestTextStyle = theme.textTheme.bodyMedium!.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.bold);
+      accruedInterestDisplayWidget = Text(
+        _fetchInterestError!,
+        style: theme.textTheme.bodyMedium!.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.bold),
+      );
     } else if (_accruedInterest != null) {
-      accruedInterestDisplayValue = currencyFormat.format(_accruedInterest);
-      Color accruedValueColor;
-      if (_accruedInterest! > 0) {
-        accruedValueColor = Colors.green;
-      } else if (_accruedInterest! < 0) {
-        accruedValueColor = Colors.red;
-      } else {
-        accruedValueColor = theme.textTheme.bodyMedium?.color ?? (theme.brightness == Brightness.dark ? Colors.white : Colors.black);
-      }
-      accruedInterestTextStyle = theme.textTheme.bodyMedium!.copyWith(
-        color: accruedValueColor,
-        fontWeight: FontWeight.bold,
+      accruedInterestDisplayWidget = CurrencyToggleWidget(
+        amount: _accruedInterest!,
+        style: theme.textTheme.bodyMedium!.copyWith(
+          color: _accruedInterest! > 0 ? Colors.green : (_accruedInterest! < 0 ? Colors.red : (theme.textTheme.bodyMedium?.color ?? (theme.brightness == Brightness.dark ? Colors.white : Colors.black))),
+          fontWeight: FontWeight.bold,
+        ),
       );
     } else {
-      accruedInterestDisplayValue = "N/A";
-      accruedInterestTextStyle = theme.textTheme.bodyMedium!;
+      accruedInterestDisplayWidget = Text("N/A", style: theme.textTheme.bodyMedium!); 
     }
 
     return Scaffold(
@@ -216,24 +212,25 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      _buildInfoTile('Nickname:', account.nickname.isNotEmpty ? account.nickname : 'N/A'),
-                      _buildInfoTile('Owner:', '${account.owner.fullName} (${account.owner.username})'),
-                      _buildInfoTile('Account Number:', account.accountNumber.toString()),
-                      _buildInfoTile('Owner Is Admin:', account.owner.isAdmin.toString()),
+                      _buildInfoTile('Nickname:', value: account.nickname.isNotEmpty ? account.nickname : 'N/A'),
+                      _buildInfoTile('Owner:', value: '${account.owner.fullName} (${account.owner.username})'),
+                      _buildInfoTile('Account Number:', value: account.accountNumber.toString()),
+                      _buildInfoTile('Owner Is Admin:', value: account.owner.isAdmin.toString()),
                       _buildInfoTile(
                         'Balance:',
-                        currencyFormat.format(account.balance),
-                        specificValueStyle: balanceTextStyle,
+                        valueWidget: CurrencyToggleWidget(
+                          amount: account.balance,
+                          style: balanceTextStyle,
+                        ),
                       ),
                       _buildInfoTile(
                         'Total Accrued Interest:',
-                        accruedInterestDisplayValue,
-                        specificValueStyle: accruedInterestTextStyle,
+                        valueWidget: accruedInterestDisplayWidget,
                       ),
-                      _buildInfoTile('Created:', dateFormat.format(account.created)),
+                      _buildInfoTile('Created:', value: dateFormat.format(account.created)),
                       _buildInfoTile(
                         'Last Interest Accrued On:',
-                        account.lastInterestAccruedDate != null
+                        value: account.lastInterestAccruedDate != null
                             ? dateFormat.format(account.lastInterestAccruedDate!)
                             : 'N/A',
                       ),
@@ -298,7 +295,10 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
     );
   }
 
-  Widget _buildInfoTile(String label, String value, {TextStyle? specificValueStyle}) {
+  Widget _buildInfoTile(String label, {String? value, Widget? valueWidget, TextStyle? specificValueStyle}) {
+    assert(value != null || valueWidget != null, 'Either value or valueWidget must be provided.');
+    assert(value == null || valueWidget == null, 'Cannot provide both value and valueWidget.');
+
     final theme = Theme.of(context);
     TextStyle? finalValueStyle;
     if (specificValueStyle != null) {
@@ -325,8 +325,8 @@ class _AdminSavingsAccountScreenState extends State<AdminSavingsAccountScreen> {
           ),
           Expanded(
             flex: 3,
-            child: Text(
-              value,
+            child: valueWidget ?? Text(
+              value!,
               style: finalValueStyle,
             ),
           ),

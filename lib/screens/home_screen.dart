@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:home_bank/bank/bank_facade.dart';
+import 'package:home_bank/widgets/currency_toggle_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:bank_server/bank.dart'; // For User, SavingsAccount, BankTransaction models
 import 'package:home_bank/utils/globals.dart'; // For logger
@@ -13,8 +14,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final NumberFormat _currencyFormat =
-      NumberFormat.currency(locale: 'en_US', symbol: '\$');
   final DateFormat _dateFormat = DateFormat('MMM d, yyyy - hh:mm a');
 
   @override
@@ -121,37 +120,26 @@ class _HomeScreenState extends State<HomeScreen> {
                   return const Text('No savings account data available.');
                 }
                 final savingsAccount = snapshot.data!;
-                // Get the default text style for the "Balance: " part
-                final defaultBalanceTextStyle =
-                    Theme.of(context).textTheme.headlineMedium;
-                // Style for the amount part
-                final amountTextStyle = defaultBalanceTextStyle?.copyWith(
-                  fontWeight: FontWeight.bold, // Keep bold if desired
-                  color: Colors.green.shade700,
-                );
-
                 return Column(
-                  // Added this Column
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      // RE-ADDED THIS TEXT WIDGET
                       'Account: ${savingsAccount.nickname}',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    const SizedBox(height: 8), // Keep spacing
-                    Text.rich(
-                      TextSpan(
-                        text: 'Balance: ',
-                        style: defaultBalanceTextStyle,
-                        children: <TextSpan>[
-                          TextSpan(
-                            text:
-                                _currencyFormat.format(savingsAccount.balance),
-                            style: amountTextStyle,
-                          ),
-                        ],
-                      ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        CurrencyToggleWidget(
+                          amount: savingsAccount.balance,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(
+                                color: Colors.green.shade700,
+                              ),
+                        ),
+                      ],
                     ),
                   ],
                 );
@@ -350,10 +338,20 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        trailing: Text(
-          '${isCredit ? '+' : '-'}${_currencyFormat.format(transaction.amount)}',
-          style: TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 16, color: amountColor),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              isCredit ? '+' : '-',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 16, color: amountColor),
+            ),
+            CurrencyToggleWidget(
+              amount: transaction.amount,
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 16, color: amountColor),
+            ),
+          ],
         ),
         isThreeLine: true,
       ),

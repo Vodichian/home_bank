@@ -2,6 +2,7 @@ import 'dart:async'; // Make sure this is imported
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:home_bank/widgets/currency_toggle_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:bank_server/bank.dart'; // Your models
 import 'package:home_bank/bank/bank_facade.dart';
@@ -23,7 +24,8 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   // No longer need _savingsAccountSubscription for this stream
   // StreamSubscription<SavingsAccount>? _savingsAccountSubscription;
 
-  SavingsAccount? _currentSavingsAccountData; // To hold the latest data from stream
+  SavingsAccount?
+      _currentSavingsAccountData; // To hold the latest data from stream
 
   @override
   void initState() {
@@ -122,7 +124,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
       setState(() {
         _interestYTD = null;
         _isLoadingInterestYTD =
-        false; // Could set to true if you want immediate loading
+            false; // Could set to true if you want immediate loading
         _currentSavingsAccountData = null;
       });
     }
@@ -159,7 +161,6 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
       );
     }
 
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Savings Account'),
@@ -172,8 +173,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             String errorMessage = 'Failed to load savings account data.';
             if (snapshot.error is AuthenticationError) {
               errorMessage =
-              'Authentication Error: Please log in again. ${(snapshot
-                  .error as AuthenticationError).message}';
+                  'Authentication Error: Please log in again. ${(snapshot.error as AuthenticationError).message}';
             } else {
               logger.e('Error in SavingsAccount stream: ${snapshot.error}');
               errorMessage += '\nDetails: ${snapshot.error.toString()}';
@@ -184,10 +184,11 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
-                        Icons.error_outline, color: Colors.red, size: 48),
+                    const Icon(Icons.error_outline,
+                        color: Colors.red, size: 48),
                     const SizedBox(height: 16),
-                    Text(errorMessage, textAlign: TextAlign.center,
+                    Text(errorMessage,
+                        textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 16)),
                     const SizedBox(height: 16),
                     ElevatedButton(
@@ -200,7 +201,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                         }
                       },
                       child: Text(snapshot.error is AuthenticationError ||
-                          _bankFacade.currentUser == null
+                              _bankFacade.currentUser == null
                           ? 'Go to Login'
                           : 'Try Again'),
                     )
@@ -228,13 +229,13 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
           if (!snapshot.hasData) {
             return const Center(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Waiting for savings account data...'),
-                  ],
-                ));
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Waiting for savings account data...'),
+              ],
+            ));
           }
 
           // 4. Data is available
@@ -245,22 +246,23 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
           // or if interest hasn't been fetched yet for this data.
           // This prevents re-fetching if the stream emits the same data multiple times.
           if (_currentSavingsAccountData?.accountNumber !=
-              savingsAccount.accountNumber || // Example: Use a unique ID
+                  savingsAccount.accountNumber || // Example: Use a unique ID
               _currentSavingsAccountData?.balance !=
                   savingsAccount.balance || // Or other relevant fields
               _interestYTD == null &&
-                  !_isLoadingInterestYTD) { // Or if interest YTD is not yet loaded and not currently loading
+                  !_isLoadingInterestYTD) {
+            // Or if interest YTD is not yet loaded and not currently loading
             _currentSavingsAccountData = savingsAccount;
             // Post a frame callback to ensure setState for _fetchInterestYTD
             // is not called during the build phase of StreamBuilder
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) { // Ensure widget is still mounted
+              if (mounted) {
+                // Ensure widget is still mounted
                 _fetchInterestYTD(_bankFacade.currentUser!.userId);
               }
             });
           }
           // --- End of YTD Interest Fetch Logic ---
-
 
           return Padding(
             padding: const EdgeInsets.all(16.0),
@@ -290,38 +292,57 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                     icon: Icons.monetization_on,
                     children: [
                       _buildInfoRow(
-                          title: 'Current Balance:',
-                          value:
-                          '\$${savingsAccount.balance.toStringAsFixed(2)}',
-                          isCurrency: true),
+                        title: 'Current Balance:',
+                        valueWidget: CurrencyToggleWidget(
+                          amount: savingsAccount.balance,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
+                        ),
+                        isCurrency: true,
+                      ),
                       _buildInfoRow(
                           title: 'Interest Rate:',
                           value:
-                          '${(savingsAccount.interestRate * 100)
-                              .toStringAsFixed(2)}%'),
+                              '${(savingsAccount.interestRate * 100).toStringAsFixed(2)}%'),
                       _isLoadingInterestYTD
                           ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Interest Earned (YTD):',
-                                style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.w500)),
-                            SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ],
-                        ),
-                      )
+                              padding: EdgeInsets.symmetric(vertical: 8.0),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Interest Earned (YTD):',
+                                      style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500)),
+                                  SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                ],
+                              ),
+                            )
                           : _buildInfoRow(
-                          title: 'Interest Earned (YTD):',
-                          value: _interestYTD != null
-                              ? '\$${_interestYTD!.toStringAsFixed(2)}'
-                              : 'N/A',
-                          isCurrency: true),
+                              title: 'Interest Earned (YTD):',
+                              valueWidget: _interestYTD != null
+                                  ? CurrencyToggleWidget(
+                                      amount: _interestYTD!,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .secondary,
+                                      ),
+                                    )
+                                  : const Text('N/A'),
+                              isCurrency: true,
+                            ),
                     ],
                   ),
                 ],
@@ -335,8 +356,8 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
 
   Widget _buildInfoCard(BuildContext context,
       {required String title,
-        required IconData icon,
-        required List<Widget> children}) {
+      required IconData icon,
+      required List<Widget> children}) {
     return Card(
       elevation: 2.0,
       margin: const EdgeInsets.symmetric(vertical: 8.0),
@@ -347,15 +368,9 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
           children: [
             Row(
               children: [
-                Icon(icon, color: Theme
-                    .of(context)
-                    .colorScheme
-                    .primary),
+                Icon(icon, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
-                Text(title, style: Theme
-                    .of(context)
-                    .textTheme
-                    .titleLarge),
+                Text(title, style: Theme.of(context).textTheme.titleLarge),
               ],
             ),
             const Divider(height: 20, thickness: 1),
@@ -366,23 +381,38 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     );
   }
 
-  Widget _buildInfoRow(
-      {required String title, required String value, bool isCurrency = false}) {
+  Widget _buildInfoRow({
+    required String title,
+    String? value,
+    Widget? valueWidget,
+    bool isCurrency = false,
+  }) {
+    assert(value != null || valueWidget != null,
+        'Either value or valueWidget must be provided.');
+    assert(value == null || valueWidget == null,
+        'Cannot provide both value and valueWidget.');
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
-          Text(title, style: const TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w500)),
-          Text(value,
+          Text(title,
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+          if (valueWidget != null)
+            valueWidget
+          else
+            Text(
+              value!,
               style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: isCurrency ? FontWeight.bold : FontWeight.normal,
-                  color: isCurrency ? Theme
-                      .of(context)
-                      .colorScheme
-                      .secondary : null)),
+                fontSize: 16,
+                fontWeight: isCurrency ? FontWeight.bold : FontWeight.normal,
+                color: isCurrency
+                    ? Theme.of(context).colorScheme.secondary
+                    : null,
+              ),
+            ),
         ],
       ),
     );

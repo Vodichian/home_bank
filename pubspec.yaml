@@ -5,7 +5,7 @@ description: "A home banking client application for my children."
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 repository: https://github.com/Vodichian/home_bank
 
-version: 1.31.1+0
+version: 1.31.2+0
 
 environment:
   sdk: '>=3.4.1 <4.0.0'
@@ -53,7 +53,7 @@ msix_config:
   display_name: Home Bank
   publisher_display_name: Vodichian
   identity_name: com.vodichian.homebank
-  msix_version: 1.31.1.0
+  msix_version: 1.31.2.0
   logo_path: assets\logo.png
   capabilities: "internetClient"
   certificate_path: C:\Users\ricks\Development\certificate\HomeBank.pfx
