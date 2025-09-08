@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:home_bank/bank/bank_facade.dart';
 import 'package:home_bank/screens/admin_screen.dart';
-import 'package:home_bank/screens/admin_savings_account_screen.dart'; // <--- ADDED IMPORT
+import 'package:home_bank/screens/admin_savings_account_screen.dart'; 
+import 'package:home_bank/screens/conversion_calculator_screen.dart'; // Added import
 
 // Make sure you have a ConnectErrorScreen, or create a basic one
 import 'package:home_bank/screens/create_user.dart';
@@ -96,7 +97,6 @@ class _MyAppState extends State<MyApp> {
         widget.bankFacade.isConnected &&
         !_updateCheckPerformedAfterLogin) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Ensure context is available from the navigatorKey
         final navContext = _router.routerDelegate.navigatorKey.currentContext;
         if (mounted && navContext != null) {
           _checkForUpdatesOnStartup(navContext);
@@ -104,10 +104,8 @@ class _MyAppState extends State<MyApp> {
         }
       });
     } else if (!widget.bankFacade.isAuthenticated) {
-      // Reset if user logs out
       _updateCheckPerformedAfterLogin = false;
     }
-    // No need to explicitly call setState unless UI depends directly on _updateCheckPerformedAfterLogin
   }
 
   Future<void> _initializeBankSystem() async {
@@ -115,21 +113,16 @@ class _MyAppState extends State<MyApp> {
       logger.i("MyApp: Attempting BankFacade.initialize()...");
       await widget.bankFacade.initialize();
       logger.i("MyApp: BankFacade.initialize() completed.");
-      // Update check is now handled by _handleBankFacadeChanges listener
     } catch (e) {
       logger.e("MyApp: BankFacade.initialize() failed: $e");
-      // BankFacade should notifyListeners, causing GoRouter to redirect to /connect_error
     }
   }
 
   Future<void> _checkForUpdatesOnStartup(BuildContext dialogContext) async {
-    // No need to check mounted here as it's checked by the caller in addPostFrameCallback
-    final scaffoldMessenger = ScaffoldMessenger.of(dialogContext); // Use dialogContext for ScaffoldMessenger
-
+    final scaffoldMessenger = ScaffoldMessenger.of(dialogContext);
     try {
       final PackageInfo packageInfo = await PackageInfo.fromPlatform();
       final String currentAppVersion = packageInfo.version;
-
       final ClientUpdateInfo? updateInfo = await widget.bankFacade.checkForUpdate();
 
       if (updateInfo != null) {
@@ -138,14 +131,12 @@ class _MyAppState extends State<MyApp> {
 
         if (updateNeeded) {
           logger.d("Startup Update Check: Update required. Current: $currentAppVersion, Latest: ${updateInfo.latestVersion.toString()}");
-          // Ensure context is still valid for showDialog
           if (dialogContext.mounted) {
             showDialog(
-              context: dialogContext, // Use the navigator's context
-              builder: (BuildContext buildContext) { // This context is from showDialog builder
+              context: dialogContext, 
+              builder: (BuildContext buildContext) { 
                 return UpdateDialog(
                   updateInfo: updateInfo,
-                  // onDownload callback is no longer needed here as UpdateDialog handles it internally
                 );
               },
             );
@@ -203,7 +194,6 @@ class _MyAppState extends State<MyApp> {
               onRetry: () async {
                 try {
                   await bank.initialize();
-                  // Update check will be triggered by _handleBankFacadeChanges if successful
                 } catch (e) {
                   logger.e("Retry from ConnectErrorScreen failed: $e");
                   final currentConfig = bank.currentServerConfig;
@@ -218,7 +208,6 @@ class _MyAppState extends State<MyApp> {
                     context.read<BankFacade>();
                 try {
                   await bankSwitch.switchServer(targetType);
-                  // Update check will be triggered by _handleBankFacadeChanges if successful
                 } catch (e) {
                   logger.e("SwitchServer from ConnectErrorScreen failed: $e");
                   final currentConfig = bankSwitch.currentServerConfig;
@@ -244,6 +233,12 @@ class _MyAppState extends State<MyApp> {
             }
             return TransactionApprovalScreen(pendingTransaction: pendingTx);
           },
+        ),
+        GoRoute( // New Route
+          path: '/currency-converter',
+          name: 'currencyConverter',
+          builder: (context, state) => const ConversionCalculatorScreen(),
+          redirect: _userAuthRedirect, // Requires user to be logged in
         ),
         GoRoute(
           path: '/admin/user-management',
@@ -349,7 +344,7 @@ class _MyAppState extends State<MyApp> {
       redirect: (BuildContext context, GoRouterState state) {
         final bank = widget.bankFacade;
         final bool isConnected = bank.isConnected;
-        final bool isLoggedIn = bank.isAuthenticated; // Use isAuthenticated
+        final bool isLoggedIn = bank.isAuthenticated; 
         final String currentLocation = state.matchedLocation;
         logger.d(
             "Redirect check: Current location '$currentLocation', isConnected: $isConnected, isLoggedIn: $isLoggedIn");
@@ -367,7 +362,7 @@ class _MyAppState extends State<MyApp> {
           return null;
         }
 
-        if (onAppLoadingSplash && !bank.hasAttemptedFirstInitialize) { // Use new flag
+        if (onAppLoadingSplash && !bank.hasAttemptedFirstInitialize) { 
            logger.d("Redirect: On app_loading_splash, initial connection attempt pending, no redirect.");
            return null;
         }
@@ -412,7 +407,7 @@ class _MyAppState extends State<MyApp> {
     if (!bank.isConnected) {
       return '/connect_error';
     }
-    if (!bank.isAuthenticated) return '/login'; // Use isAuthenticated
+    if (!bank.isAuthenticated) return '/login'; 
     if (!bank.currentUser!.isAdmin) {
       logger.w(
           "AdminAuthRedirect: Non-admin access to ${state.matchedLocation}. Redirecting to /home.");
@@ -426,7 +421,7 @@ class _MyAppState extends State<MyApp> {
     if (!bank.isConnected) {
       return '/connect_error';
     }
-    if (!bank.isAuthenticated) return '/login'; // Use isAuthenticated
+    if (!bank.isAuthenticated) return '/login'; 
     return null;
   }
 
@@ -513,7 +508,7 @@ class _MainScreenState extends State<MainScreen> {
     int currentTabIndex = _calculateSelectedIndex(context);
 
     bool isAdmin =
-        bankFacade.isConnected && bankFacade.isAuthenticated && bankFacade.currentUser?.isAdmin == true; // check isAuthenticated
+        bankFacade.isConnected && bankFacade.isAuthenticated && bankFacade.currentUser?.isAdmin == true; 
 
     List<BottomNavigationBarItem> navBarItems = [
       const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
@@ -537,7 +532,7 @@ class _MainScreenState extends State<MainScreen> {
       body: widget.child,
       bottomNavigationBar: widget.showBottomNavigationBar &&
               bankFacade.isConnected &&
-              bankFacade.isAuthenticated // Check isAuthenticated
+              bankFacade.isAuthenticated 
           ? BottomNavigationBar(
               currentIndex: currentTabIndex,
               onTap: (index) => _onItemTapped(index, context),

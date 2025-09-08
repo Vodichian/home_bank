@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:home_bank/screens/conversion_calculator_screen.dart'; // Added import
 import 'package:home_bank/screens/payment_screen.dart';
 import 'package:home_bank/screens/transfer_money_screen.dart';
 import 'package:home_bank/screens/withdraw_funds_screen.dart';
 import 'package:home_bank/utils/globals.dart';
 import 'add_funds_screen.dart';
-
-// Assuming AddFundsSheet is in a separate file or you'll define it
-// import 'add_funds_sheet.dart'; // Or similar
 
 class ServicesHubScreen extends StatelessWidget {
   const ServicesHubScreen({super.key});
@@ -16,16 +14,11 @@ class ServicesHubScreen extends StatelessWidget {
       context,
       MaterialPageRoute(builder: (context) => const AddFundsScreen()),
     ).then((result) {
-      // This 'then' block will execute when AddFundsScreen is popped.
-      // 'result' will be the value passed to Navigator.pop(context, result)
-      // from AddFundsScreen. We set it to 'true' on successful fund addition.
       if (result == true && context.mounted) {
-        // Optional: Refresh data if needed, e.g., if this screen shows a balance
-        // context.read<BankFacade>().fetchLatestBalance(); // Example
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text(
-                  'Funds action completed successfully.')), // Updated message
+                  'Funds action completed successfully.')), 
         );
         logger.d("Add Funds screen popped with success.");
       } else {
@@ -44,17 +37,12 @@ class ServicesHubScreen extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content:
-                  Text('Funds withdrawn successfully.')), // Specific message
+                  Text('Funds withdrawn successfully.')), 
         );
         logger.d("Withdraw Funds screen popped with success.");
       } else if (context.mounted) {
-        // Ensure context is mounted
         logger.d(
             "Withdraw Funds screen popped (no action, failed, or cancelled).");
-        // Optionally, show a generic message if needed, or nothing
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   const SnackBar(content: Text('Withdraw funds action concluded.')),
-        // );
       }
     });
     logger.d("Navigating to Withdraw Funds Screen");
@@ -63,19 +51,19 @@ class ServicesHubScreen extends StatelessWidget {
   void _navigateToPayments(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const PaymentScreen()), // Navigate to PaymentScreen
+      MaterialPageRoute(builder: (context) => const PaymentScreen()), 
     ).then((result) {
       if (result == true && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Payment action completed successfully.')),
         );
         logger.d("Payment screen popped with success.");
-        // Optional: Trigger a refresh if needed, though StreamBuilder should handle balance
       } else if (context.mounted) {
         logger.d("Payment screen popped (no action, failed, or cancelled).");
       }
     });
-    logger.d("Navigating to Payment Screen");  }
+    logger.d("Navigating to Payment Screen");
+  }
 
   void _navigateToTransfer(BuildContext context) {
     Navigator.push(
@@ -91,19 +79,29 @@ class ServicesHubScreen extends StatelessWidget {
       } else if (context.mounted) {
         logger.d(
             "Transfer Money screen popped (no action, failed, or cancelled).");
-        // Optionally, show a generic message if needed
       }
     });
     logger.d("Navigating to Transfer Money Screen");
+  }
+
+  // New navigation method
+  void _navigateToCurrencyConverter(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ConversionCalculatorScreen()),
+    ).then((_) { // No specific result handling needed for now
+      logger.d("Currency Converter screen popped.");
+    });
+    logger.d("Navigating to Currency Converter Screen");
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Financial Services'), // Clearer title
+        title: const Text('Financial Services'), 
         automaticallyImplyLeading:
-            false, // No back button for a tab's root screen
+            false, 
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -131,6 +129,12 @@ class ServicesHubScreen extends StatelessWidget {
               icon: Icons.swap_horiz,
               label: 'Transfer Money',
               onTap: () => _navigateToTransfer(context),
+            ),
+            const SizedBox(height: 16), // Added space
+            _ServiceButton(
+              icon: Icons.currency_exchange, // New button
+              label: 'Currency Converter',
+              onTap: () => _navigateToCurrencyConverter(context),
             ),
           ],
         ),
@@ -163,15 +167,11 @@ class _ServiceButton extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        // Consider adding foregroundColor and backgroundColor from theme
-        // foregroundColor: Theme.of(context).colorScheme.onPrimary,
-        // backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }
 }
 
-// Placeholder for AddFundsSheet (ensure you have your actual implementation)
 class AddFundsSheet extends StatefulWidget {
   const AddFundsSheet({super.key});
 
@@ -185,9 +185,8 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
-      // TODO: Actual logic to add funds via BankFacade
       logger.d('Adding funds: ${_amountController.text}');
-      Navigator.pop(context, true); // Pop with true to indicate success
+      Navigator.pop(context, true); 
     }
   }
 
@@ -195,7 +194,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom, // For keyboard
+        bottom: MediaQuery.of(context).viewInsets.bottom, 
         left: 20,
         right: 20,
         top: 20,
@@ -236,7 +235,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
               ),
               child: const Text('Confirm'),
             ),
-            const SizedBox(height: 10), // Space for keyboard
+            const SizedBox(height: 10), 
           ],
         ),
       ),
