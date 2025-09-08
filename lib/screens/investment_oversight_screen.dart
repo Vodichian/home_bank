@@ -39,6 +39,7 @@ class _InvestmentOversightScreenState extends State<InvestmentOversightScreen> {
   final Map<String, double> _accruedInterestsMap = {};
   final NumberFormat _currencyFormat =
       NumberFormat.currency(locale: 'en_US', symbol: '\$');
+  bool _isSummaryPanelExpanded = true; // New state variable for summary panel
   // --- End Summary State Variables ---
 
   @override
@@ -246,7 +247,6 @@ class _InvestmentOversightScreenState extends State<InvestmentOversightScreen> {
   Widget _buildSummaryWidget(int count, double totalBalance, double totalInterest) {
     final ThemeData theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(16.0),
       margin: const EdgeInsets.fromLTRB(8.0, 0, 8.0, 8.0), // Add margin to bottom
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
@@ -259,40 +259,63 @@ class _InvestmentOversightScreenState extends State<InvestmentOversightScreen> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: ExpansionPanelList(
+        elevation: 0, // Card already has elevation
+        expandedHeaderPadding: EdgeInsets.zero,
+        expansionCallback: (int index, bool isExpanded) {
+          setState(() {
+            _isSummaryPanelExpanded = !_isSummaryPanelExpanded;
+          });
+        },
         children: [
-          Text(
-            'Summary of Shown Accounts',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurfaceVariant,
+          ExpansionPanel(
+            backgroundColor: Colors.transparent, // Let the container's color show
+            headerBuilder: (BuildContext context, bool isExpanded) {
+              return ListTile(
+                title: Text(
+                  'Summary of Shown Accounts',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                // Removed the trailing icon here as ExpansionPanel provides its own
+              );
+            },
+            body: Padding(
+              padding: const EdgeInsets.all(16.0).copyWith(top: 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Visible Accounts:', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                      Text('$count', style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurfaceVariant)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Total Balance:', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                      Text(_currencyFormat.format(totalBalance), style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurfaceVariant)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Total Accrued Interest:', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                      Text(_currencyFormat.format(totalInterest), style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurfaceVariant)),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Visible Accounts:', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              Text('$count', style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurfaceVariant)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Total Balance:', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              Text(_currencyFormat.format(totalBalance), style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurfaceVariant)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Total Accrued Interest:', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              Text(_currencyFormat.format(totalInterest), style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurfaceVariant)),
-            ],
+            isExpanded: _isSummaryPanelExpanded,
+            canTapOnHeader: true, // Allow tapping header to expand/collapse
           ),
         ],
       ),
