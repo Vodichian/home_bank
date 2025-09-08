@@ -530,6 +530,7 @@ class _SavingsAccountListItemState extends State<SavingsAccountListItem> {
   @override
   Widget build(BuildContext context) {
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final ThemeData theme = Theme.of(context); // Added this line
 
     return Card(
       elevation: 2,
@@ -551,9 +552,9 @@ class _SavingsAccountListItemState extends State<SavingsAccountListItem> {
         ),
         title: Text(
           'Holder: ${widget.account.owner.fullName} ${widget.account.owner.isAdmin ? "(Admin)" : ""}',
-          style: TextStyle(
+          style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
-            color: colorScheme.onSurfaceVariant,
+            color: theme.colorScheme.onSurface,
           ),
         ),
         subtitle: Column(
