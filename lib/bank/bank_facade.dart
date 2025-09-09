@@ -591,6 +591,36 @@ class BankFacade extends ChangeNotifier {
     );
   }
 
+  /// Retrieves the balance history for a user's savings account over a specified period.
+  ///
+  /// This method fetches a series of balance snapshots for the user's account,
+  /// ending on the given [endDate] and going back for the specified number of [days].
+  ///
+  /// [userId]: The ID of the user whose balance history is being queried. If null,
+  ///           it defaults to the currently logged-in user's ID.
+  /// [endDate]: The last date for which to retrieve the balance.
+  /// [days]: The number of days of history to retrieve, ending on [endDate].
+  ///
+  /// Returns a [Future] that completes with a [Map] where keys are [DateTime] objects
+  /// representing the date of the balance snapshot, and values are the corresponding
+  /// account balance as a [double].
+  ///
+  /// Throws [AuthenticationError] if the user is not logged in, or if the
+  /// logged-in user is not authorized to view the history for the specified `userId`.
+  /// Throws [StateError] for other server-side errors.
+  Future<Map<DateTime, double>> getBalanceHistory({
+    int? userId,
+    required DateTime endDate,
+    required int days,
+  }) async {
+    if (_currentUser == null) {
+      throw AuthenticationError('User is not logged in.');
+    }
+    final targetUserId = userId ?? _currentUser!.userId;
+    return await _client.getBalanceHistory(
+        _currentUser!, targetUserId, endDate, days);
+  }
+
   /// Exports the entire bank database to a JSON string.
   /// Requires the current user to be an administrator.
   Future<String> exportDatabaseToJson() async {
