@@ -121,6 +121,13 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     }
   }
 
+  void _displayBalanceHistory(Map<DateTime, double> history) {
+    // prints history to console for debugging, adding newlines between each entry
+    history.forEach((date, balance) {
+      print('Date: $date, Balance: $balance');
+    });
+  }
+
   Future<void> _fetchBalanceHistory() async {
     setState(() {
       _isLoadingHistory = true;
@@ -132,8 +139,12 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
       final now = DateTime.now();
       final history = await _bankFacade.getBalanceHistory(
         endDate: now,
-        days: 365,
+        days: 90,
       );
+
+      // TODO: Test code
+      _displayBalanceHistory(history);
+
       if (mounted) {
         setState(() {
           _balanceHistory = history;
