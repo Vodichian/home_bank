@@ -621,6 +621,19 @@ class BankFacade extends ChangeNotifier {
         _currentUser!, targetUserId, endDate, days);
   }
 
+  Future<Map<DateTime, double>> getInterestHistory({
+    int? userId,
+    required DateTime endDate,
+    required int days,
+  }) async {
+    if (_currentUser == null) {
+      throw AuthenticationError('User is not logged in.');
+    }
+    final targetUserId = userId ?? _currentUser!.userId;
+    return await _client.getInterestHistory(
+        _currentUser!, targetUserId, endDate, days);
+  }
+
   /// Exports the entire bank database to a JSON string.
   /// Requires the current user to be an administrator.
   Future<String> exportDatabaseToJson() async {

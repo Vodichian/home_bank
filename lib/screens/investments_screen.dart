@@ -1,4 +1,5 @@
 import 'dart:async'; // Make sure this is imported
+import 'dart:math';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +24,11 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   double? _interestYTD;
   bool _isLoadingInterestYTD = false;
   Map<DateTime, double>? _balanceHistory;
+  Map<DateTime, double>? _interestHistory;
   bool _isLoadingHistory = false;
+  bool _isLoadingInterestHistory = false;
+  final _formatter = NumberFormat('#,##0', 'en_US');
+  final int _historyPeriodInDays = 30;
 
   // No longer need _savingsAccountSubscription for this stream
   // StreamSubscription<SavingsAccount>? _savingsAccountSubscription;
@@ -37,6 +42,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     _bankFacade = context.read<BankFacade>();
     _initializeStream(); // Just initialize the stream, don't listen here
     _fetchBalanceHistory();
+    _fetchInterestHistory();
   }
 
   void _initializeStream() {
@@ -121,13 +127,6 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     }
   }
 
-  void _displayBalanceHistory(Map<DateTime, double> history) {
-    // prints history to console for debugging, adding newlines between each entry
-    history.forEach((date, balance) {
-      print('Date: $date, Balance: $balance');
-    });
-  }
-
   Future<void> _fetchBalanceHistory() async {
     setState(() {
       _isLoadingHistory = true;
@@ -139,11 +138,8 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
       final now = DateTime.now();
       final history = await _bankFacade.getBalanceHistory(
         endDate: now,
-        days: 90,
+        days: _historyPeriodInDays,
       );
-
-      // TODO: Test code
-      _displayBalanceHistory(history);
 
       if (mounted) {
         setState(() {
@@ -165,10 +161,44 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     }
   }
 
+  Future<void> _fetchInterestHistory() async {
+    setState(() {
+      _isLoadingInterestHistory = true;
+    });
+
+    try {
+      final now = DateTime.now();
+      final history = await _bankFacade.getInterestHistory(
+        endDate: now,
+        days: _historyPeriodInDays,
+      );
+
+      if (mounted) {
+        setState(() {
+          _interestHistory = history;
+          _isLoadingInterestHistory = false;
+        });
+      }
+    } catch (e) {
+      logger.e('Failed to fetch interest history: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text('Error fetching interest history: ${e.toString()}')),
+        );
+        setState(() {
+          _isLoadingInterestHistory = false;
+        });
+      }
+    }
+  }
+
   void _refreshSavingsData() {
     // Re-initialize the stream. The StreamBuilder will pick up the new stream.
     _initializeStream();
     _fetchBalanceHistory();
+    _fetchInterestHistory();
     // Reset YTD interest as well, as it will be re-fetched when new stream data arrives.
     if (mounted) {
       setState(() {
@@ -404,10 +434,26 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                           ? const Center(child: CircularProgressIndicator())
                           : (_balanceHistory != null &&
                                   _balanceHistory!.isNotEmpty)
-                              ? _buildBalanceChart(_balanceHistory!)
+                              ? _buildChart(_balanceHistory!)
                               : const Text('No balance history available.'),
                     ],
                   ),
+                  // ...
+                  const SizedBox(height: 16),
+                  _buildInfoCard(
+                    context,
+                    title: 'Interest History',
+                    icon: Icons.show_chart,
+                    children: [
+                      _isLoadingInterestHistory
+                          ? const Center(child: CircularProgressIndicator())
+                          : (_interestHistory != null &&
+                                  _interestHistory!.isNotEmpty)
+                              ? _buildChart(_interestHistory!)
+                              : const Text('No interest history available.'),
+                    ],
+                  ),
+// ...
                 ],
               ),
             ),
@@ -417,27 +463,50 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     );
   }
 
-  Widget _buildBalanceChart(Map<DateTime, double> history) {
+  Widget _buildChart(Map<DateTime, double> history) {
+    if (history.isEmpty) {
+      return const SizedBox.shrink();
+    }
     final spots = history.entries.map((entry) {
       return FlSpot(entry.key.millisecondsSinceEpoch.toDouble(), entry.value);
     }).toList();
+
+    final sortedTimestamps = history.keys
+        .map((e) => e.millisecondsSinceEpoch.toDouble())
+        .toList()
+      ..sort();
+    final firstTimestamp = sortedTimestamps.first;
+    final lastTimestamp = sortedTimestamps.last;
+
+    final yValues = history.values;
+    final minY = yValues.reduce(min);
+    final maxY = yValues.reduce(max);
+
+    final double verticalPadding;
+    if (maxY == minY) {
+      verticalPadding = maxY == 0 ? 1 : (maxY * 0.1).abs();
+    } else {
+      verticalPadding = (maxY - minY) * 0.1;
+    }
+    final double paddedMinY = max(0, minY - verticalPadding);
+    final double paddedMaxY = maxY + verticalPadding;
 
     return SizedBox(
       height: 200,
       child: LineChart(
         LineChartData(
+          minY: paddedMinY,
+          maxY: paddedMaxY,
           gridData: const FlGridData(show: true),
           lineTouchData: LineTouchData(
             enabled: true,
             touchTooltipData: LineTouchTooltipData(
               getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
                 return touchedBarSpots.map((barSpot) {
-                  final date = DateTime.fromMillisecondsSinceEpoch(
-                      barSpot.x.toInt());
-                  // Corrected to pass String to LineTooltipItem
+                  final date =
+                      DateTime.fromMillisecondsSinceEpoch(barSpot.x.toInt());
                   return LineTooltipItem(
-                    '${DateFormat.Md().format(date)}: \$${barSpot.y
-                        .toStringAsFixed(2)}',
+                    '${DateFormat.Md().format(date)}: \$${barSpot.y.toStringAsFixed(2)}',
                     const TextStyle(
                         color: Colors.white), // Style for the tooltip container
                   );
@@ -446,23 +515,64 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
             ),
           ),
           titlesData: FlTitlesData(
-              show: true,
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 30,
-                  getTitlesWidget: (value, meta) {
-                    final date =
-                        DateTime.fromMillisecondsSinceEpoch(value.toInt());
-                    return SideTitleWidget(
-                      meta: meta, // Correctly passing meta here
-                      space: 8.0,
-                      child: Text(DateFormat.Md().format(date)),
-                    );
-                  },
-                ),
+            show: true,
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 50,
+                getTitlesWidget: (value, meta) {
+                  // Hide edge labels to avoid crowding
+                  if (value == meta.min || value == meta.max) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final date =
+                      DateTime.fromMillisecondsSinceEpoch(value.toInt());
+
+                  TextAlign textAlign = TextAlign.center;
+                  // Adjust alignment for the first and last labels
+                  if (value.toInt() == firstTimestamp.toInt()) {
+                    textAlign = TextAlign.left;
+                  } else if (value.toInt() == lastTimestamp.toInt()) {
+                    textAlign = TextAlign.right;
+                  }
+
+                  return SideTitleWidget(
+                    meta: meta,
+                    space: 8.0,
+                    child: Text(DateFormat('MMM\ndd').format(date),
+                        textAlign: textAlign),
+                  );
+                },
               ),
-              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false))),
+            ),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 50,
+                  getTitlesWidget: (value, meta) {
+                    // Hide edge labels to avoid crowding
+                    if (value == meta.min) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return SideTitleWidget(
+                      meta: meta,
+                      space: 8.0,
+                      child: Text(
+                        '\$${_formatter.format(value)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: Colors.white,
+                        ),
+                      ),
+                    );
+                  }),
+            ),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
           borderData: FlBorderData(
             show: true,
             border: Border.all(color: const Color(0xff37434d), width: 1),
