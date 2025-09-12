@@ -28,7 +28,19 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   bool _isLoadingHistory = false;
   bool _isLoadingInterestHistory = false;
   final _formatter = NumberFormat('#,##0', 'en_US');
-  final int _historyPeriodInDays = 30;
+
+  // final int _historyPeriodInDays = 30;
+  int _selectedHistoryPeriodInDays = 30; // Default value is 30 days
+
+  void _onSelectHistoryPeriod(int? period) {
+    if (period != null) {
+      setState(() {
+        _selectedHistoryPeriodInDays = period;
+      });
+      _fetchBalanceHistory();
+      _fetchInterestHistory();
+    }
+  }
 
   // No longer need _savingsAccountSubscription for this stream
   // StreamSubscription<SavingsAccount>? _savingsAccountSubscription;
@@ -138,7 +150,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
       final now = DateTime.now();
       final history = await _bankFacade.getBalanceHistory(
         endDate: now,
-        days: _historyPeriodInDays,
+        days: _selectedHistoryPeriodInDays,
       );
 
       if (mounted) {
@@ -170,7 +182,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
       final now = DateTime.now();
       final history = await _bankFacade.getInterestHistory(
         endDate: now,
-        days: _historyPeriodInDays,
+        days: _selectedHistoryPeriodInDays,
       );
 
       if (mounted) {
@@ -221,7 +233,9 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     // Handle case where stream couldn't be initialized due to auth error in initState
     if (_savingsAccountStream == null && _bankFacade.currentUser == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Savings Account')),
+        appBar: AppBar(
+          title: const Text('Savings Account'),
+        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -244,6 +258,43 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Savings Account'),
+        actions: [
+          Row(
+            children: [
+              Padding(
+                padding: EdgeInsets.only(right: 10),
+                // Adjust the padding as needed
+                child: Text('Period:',
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.bold)),
+              ),
+              DropdownButton<int>(
+                value: _selectedHistoryPeriodInDays,
+                onChanged: (period) {
+                  _onSelectHistoryPeriod(period);
+                },
+                items: const [
+                  DropdownMenuItem(value: 7, child: Text(' 7 Days')),
+                  DropdownMenuItem(value: 14, child: Text(' 14 Days')),
+                  DropdownMenuItem(value: 30, child: Text(' 30 Days')),
+                  DropdownMenuItem(value: 60, child: Text(' 60 Days')),
+                  DropdownMenuItem(value: 90, child: Text(' 90 Days')),
+                  DropdownMenuItem(value: 180, child: Text(' 180 Days')),
+                  DropdownMenuItem(value: 365, child: Text(' 365 Days')),
+                ],
+                // style: TextStyle(
+                //   color: Theme.of(context).colorScheme.onPrimary,
+                //   fontSize: 16,
+                // ),
+                icon: Icon(Icons.arrow_drop_down,
+                    color: Theme.of(context).colorScheme.onPrimary),
+              ),
+            ],
+          ),
+        ],
+        // backgroundColor: Theme.of(context).colorScheme.primary,
       ),
       body: StreamBuilder<SavingsAccount>(
         stream: _savingsAccountStream, // Use the stream from BankFacade
@@ -353,6 +404,7 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
                 children: <Widget>[
                   _buildInfoCard(
                     context,
+                    isExpanded: false,
                     title: 'Account Details',
                     icon: Icons.account_balance_wallet,
                     children: [
@@ -595,26 +647,27 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
   Widget _buildInfoCard(BuildContext context,
       {required String title,
       required IconData icon,
-      required List<Widget> children}) {
+      required List<Widget> children,
+      bool isExpanded = true}) {
     return Card(
       elevation: 2.0,
       margin: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: ExpansionTile(
+        title: Text(title, style: Theme.of(context).textTheme.titleLarge),
+        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+        initiallyExpanded: isExpanded,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(title, style: Theme.of(context).textTheme.titleLarge),
+                const Divider(height: 20, thickness: 1),
+                ...children,
               ],
             ),
-            const Divider(height: 20, thickness: 1),
-            ...children,
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
