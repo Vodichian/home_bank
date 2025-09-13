@@ -389,6 +389,8 @@ class _InvestmentsScreenState extends State<InvestmentsScreen> {
               if (mounted) {
                 // Ensure widget is still mounted
                 _fetchInterestYTD(_bankFacade.currentUser!.userId);
+                _fetchBalanceHistory();
+                _fetchInterestHistory();
               }
             });
           }
